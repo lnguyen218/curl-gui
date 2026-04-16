@@ -24,7 +24,7 @@ dist-ssr
 *.sw?
 
 # Rust / Tauri
-/target/
+src-tauri/target/
 Cargo.lock
 *.rs.bk
 
