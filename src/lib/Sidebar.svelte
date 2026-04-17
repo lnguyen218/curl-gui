@@ -4,6 +4,7 @@
 
   export let savedRequests: SavedRequest[];
   export let searchFilter: string = "";
+  export let activeRequestId: string | null = null;
 
   const dispatch = createEventDispatcher<{
     load: SavedRequest;
@@ -74,7 +75,7 @@
       </div>
     {:else}
       {#each filteredRequests as saved (saved.id)}
-        <div class="saved-request-item" on:click={() => dispatch("load", saved)}>
+        <div class="saved-request-item" class:active={saved.id === activeRequestId} on:click={() => dispatch("load", saved)}>
           <div class="request-info">
             <span class="method-badge" style="color: {getMethodColor(saved.method)}">{saved.method}</span>
             <span class="request-name" title={saved.name}>{saved.name}</span>
@@ -203,6 +204,16 @@
   }
 
   .saved-request-item:hover .request-actions {
+    opacity: 1;
+  }
+
+  .saved-request-item.active {
+    background: #2a2a3e;
+    border-color: #61affe;
+    box-shadow: 0 0 0 1px #61affe;
+  }
+
+  .saved-request-item.active .request-actions {
     opacity: 1;
   }
 

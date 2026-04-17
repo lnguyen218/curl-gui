@@ -17,6 +17,7 @@
   const savedRequests = writable<SavedRequest[]>([]);
   
   // UI state
+  let activeRequestId: string | null = null;
   let response: ResponseData | null = null;
   let loading = false;
   let error = "";
@@ -57,9 +58,26 @@
   });
 
   // Auto-save: persist current state whenever it changes
+  // Also clear active highlight if user modifies the loaded request
   $: {
     const state = { method, url, headers, body };
     localStorage.setItem("curl-gui-current", JSON.stringify(state));
+    
+    // Clear active highlight if the current state doesn't match the active saved request
+    if (activeRequestId) {
+      const activeReq = $savedRequests.find(r => r.id === activeRequestId);
+      if (activeReq) {
+        const headersMatch = JSON.stringify(activeReq.headers) === JSON.stringify(headers);
+        const bodyMatch = activeReq.body === body;
+        const urlMatch = activeReq.url === url;
+        const methodMatch = activeReq.method === method;
+        if (!headersMatch || !bodyMatch || !urlMatch || !methodMatch) {
+          activeRequestId = null;
+        }
+      } else {
+        activeRequestId = null;
+      }
+    }
   }
 
   function persistRequests() {
@@ -119,6 +137,22 @@
 
     persistRequests();
     closeModal();
+
+    // If creating a new request (not editing), select it and reset form to fresh state
+    if (!editingRequest) {
+      activeRequestId = newReq.id;
+      resetForm();
+    }
+  }
+
+  function resetForm() {
+    method = "GET";
+    url = "";
+    headers = [{ key: "", value: "" }];
+    body = "";
+    response = null;
+    error = "";
+    curlCommand = "";
   }
 
   function loadRequest(saved: SavedRequest) {
@@ -126,6 +160,7 @@
     url = saved.url;
     headers = JSON.parse(JSON.stringify(saved.headers));
     body = saved.body;
+    activeRequestId = saved.id;
     response = null;
     error = "";
     curlCommand = "";
@@ -164,6 +199,7 @@
   <Sidebar
     savedRequests={$savedRequests}
     bind:searchFilter
+    {activeRequestId}
     on:load={(e) => loadRequest(e.detail)}
     on:delete={(e) => deleteRequest(e.detail)}
     on:edit={(e) => editRequestName(e.detail)}
