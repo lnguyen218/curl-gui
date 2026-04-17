@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="180" fill="#1a1a2e"/>
+  <rect x="100" y="100" width="824" height="824" rx="140" fill="#1e1e2e"/>
+  
+  <!-- Terminal/command prompt brackets -->
+  <path d="M320 350 L220 512 L320 674" fill="none" stroke="#61affe" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M704 350 L804 512 L704 674" fill="none" stroke="#61affe" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- HTTP slash -->
+  <line x1="512" y1="280" x2="512" y2="744" stroke="#49cc90" stroke-width="60" stroke-linecap="round"/>
+  
+  <!-- Method dots -->
+  <circle cx="512" cy="190" r="30" fill="#fca130"/>
+  <circle cx="512" cy="834" r="30" fill="#f93e3e"/>
+</svg>
