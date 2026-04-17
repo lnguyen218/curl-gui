@@ -10,7 +10,7 @@
 
   const dispatch = createEventDispatcher<{
     send: void;
-    save: void;
+    update: void;
   }>();
 
   let activeTab: "headers" | "body" | "params" = "headers";
@@ -41,6 +41,17 @@
   function updateHeader(index: number, field: "key" | "value", value: string) {
     headers = headers.map((h, i) => (i === index ? { ...h, [field]: value } : h));
   }
+
+  // Auto-save: notify parent whenever any request field changes
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  $: {
+    // Trigger when any bound value changes
+    method, url, headers, body;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      dispatch("update");
+    }, 300);
+  }
 </script>
 
 <div class="request-panel">
@@ -64,8 +75,6 @@
     <button on:click={() => dispatch("send")} class="send-btn" disabled={loading}>
       {#if loading}<span class="spinner"></span>{:else}Send{/if}
     </button>
-    
-    <button on:click={() => dispatch("save")} class="save-btn" title="Save">💾</button>
   </div>
 
   <div class="request-tabs">
@@ -181,22 +190,6 @@
   .send-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-  }
-
-  .save-btn {
-    padding: 10px 15px;
-    border-radius: 6px;
-    border: 1px solid #3a3a4e;
-    background: #2a2a3e;
-    color: #e4e4e7;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .save-btn:hover {
-    background: #3a3a4e;
-    border-color: #61affe;
   }
 
   .spinner {

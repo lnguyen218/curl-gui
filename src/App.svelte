@@ -58,30 +58,34 @@
   });
 
   // Auto-save: persist current state whenever it changes
-  // Also clear active highlight if user modifies the loaded request
   $: {
     const state = { method, url, headers, body };
     localStorage.setItem("curl-gui-current", JSON.stringify(state));
-    
-    // Clear active highlight if the current state doesn't match the active saved request
-    if (activeRequestId) {
-      const activeReq = $savedRequests.find(r => r.id === activeRequestId);
-      if (activeReq) {
-        const headersMatch = JSON.stringify(activeReq.headers) === JSON.stringify(headers);
-        const bodyMatch = activeReq.body === body;
-        const urlMatch = activeReq.url === url;
-        const methodMatch = activeReq.method === method;
-        if (!headersMatch || !bodyMatch || !urlMatch || !methodMatch) {
-          activeRequestId = null;
-        }
-      } else {
-        activeRequestId = null;
-      }
-    }
   }
 
   function persistRequests() {
     localStorage.setItem("curl-gui-saved-requests", JSON.stringify($savedRequests));
+  }
+
+  function autoSaveRequest() {
+    // If there's an active saved request, update it automatically
+    if (activeRequestId) {
+      savedRequests.update(reqs => {
+        return reqs.map(r => {
+          if (r.id === activeRequestId) {
+            return {
+              ...r,
+              method,
+              url,
+              headers: JSON.parse(JSON.stringify(headers)),
+              body,
+            };
+          }
+          return r;
+        });
+      });
+      persistRequests();
+    }
   }
 
   async function sendRequest() {
@@ -150,6 +154,7 @@
     url = "";
     headers = [{ key: "", value: "" }];
     body = "";
+    activeRequestId = null;
     response = null;
     error = "";
     curlCommand = "";
@@ -215,7 +220,7 @@
       bind:body
       {loading}
       on:send={sendRequest}
-      on:save={openSaveModal}
+      on:update={autoSaveRequest}
     />
 
     <div class="divider-line"></div>

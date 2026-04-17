@@ -80,7 +80,6 @@
             <span class="method-badge" style="color: {getMethodColor(saved.method)}">{saved.method}</span>
             <span class="request-name" title={saved.name}>{saved.name}</span>
           </div>
-          <div class="request-url" title={saved.url}>{saved.url}</div>
           <div class="request-actions">
             <button class="action-btn edit" on:click={(e) => handleEdit(e, saved)} title="Rename">✎</button>
             <button class="action-btn delete" on:click={(e) => handleDelete(e, saved.id)} title="Delete">×</button>
