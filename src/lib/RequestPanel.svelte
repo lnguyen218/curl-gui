@@ -1,0 +1,337 @@
+<script lang="ts">
+  import type { Header, HttpMethod } from "../types";
+  import { createEventDispatcher } from "svelte";
+
+  export let method: HttpMethod;
+  export let url: string;
+  export let headers: Header[];
+  export let body: string;
+  export let loading: boolean = false;
+
+  const dispatch = createEventDispatcher<{
+    send: void;
+    save: void;
+  }>();
+
+  let activeTab: "headers" | "body" | "params" = "headers";
+
+  const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+
+  const getMethodColor = (m: HttpMethod): string => {
+    switch (m) {
+      case "GET": return "#61affe";
+      case "POST": return "#49cc90";
+      case "PUT": return "#fca130";
+      case "DELETE": return "#f93e3e";
+      case "PATCH": return "#50e3c2";
+      case "HEAD": return "#9012fe";
+      case "OPTIONS": return "#0d5aa7";
+      default: return "#999";
+    }
+  };
+
+  function addHeader() {
+    headers = [...headers, { key: "", value: "" }];
+  }
+
+  function removeHeader(index: number) {
+    headers = headers.filter((_, i) => i !== index);
+  }
+
+  function updateHeader(index: number, field: "key" | "value", value: string) {
+    headers = headers.map((h, i) => (i === index ? { ...h, [field]: value } : h));
+  }
+</script>
+
+<div class="request-panel">
+  <div class="url-bar">
+    <select 
+      class="method-select"
+      bind:value={method}
+    >
+      {#each methods as m}
+        <option value={m} style="color: {getMethodColor(m)}">{m}</option>
+      {/each}
+    </select>
+
+    <input 
+      type="text" 
+      bind:value={url}
+      placeholder="https://api.example.com/endpoint" 
+      class="url-input" 
+    />
+
+    <button on:click={() => dispatch("send")} class="send-btn" disabled={loading}>
+      {#if loading}<span class="spinner"></span>{:else}Send{/if}
+    </button>
+    
+    <button on:click={() => dispatch("save")} class="save-btn" title="Save">💾</button>
+  </div>
+
+  <div class="request-tabs">
+    <button class="tab-btn" class:active={activeTab === "params"} on:click={() => activeTab = "params"}>Params</button>
+    <button class="tab-btn" class:active={activeTab === "headers"} on:click={() => activeTab = "headers"}>
+      Headers ({headers.filter(h => h.key).length})
+    </button>
+    <button class="tab-btn" class:active={activeTab === "body"} on:click={() => activeTab = "body"}>Body</button>
+  </div>
+
+  <div class="tab-content">
+    {#if activeTab === "headers"}
+      <div class="headers-section">
+        {#each headers as header, i (i)}
+          <div class="header-row">
+            <input 
+              type="text" 
+              placeholder="Key" 
+              bind:value={header.key}
+              on:input={() => updateHeader(i, "key", header.key)} 
+              class="header-key" 
+            />
+            <input 
+              type="text" 
+              placeholder="Value" 
+              bind:value={header.value}
+              on:input={() => updateHeader(i, "value", header.value)} 
+              class="header-value" 
+            />
+            <button on:click={() => removeHeader(i)} class="remove-btn">×</button>
+          </div>
+        {/each}
+        <button on:click={addHeader} class="add-header-btn">+ Add Header</button>
+      </div>
+    {:else if activeTab === "body"}
+      <div class="body-section">
+        <textarea 
+          bind:value={body}
+          placeholder={`{\n  "key": "value"\n}`} 
+          class="body-editor"
+        ></textarea>
+      </div>
+    {:else}
+      <div class="params-section">
+        <p class="placeholder">Query params parsed from URL</p>
+      </div>
+    {/if}
+  </div>
+</div>
+
+<style>
+  .request-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: #1e1e2e;
+    min-width: 0;
+  }
+
+  .url-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .method-select {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 100px;
+    cursor: pointer;
+  }
+
+  .url-input {
+    flex: 1;
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+  }
+
+  .url-input:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .send-btn {
+    padding: 10px 30px;
+    border-radius: 6px;
+    border: none;
+    background: #49cc90;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .send-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .save-btn {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .save-btn:hover {
+    background: #3a3a4e;
+    border-color: #61affe;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .request-tabs {
+    display: flex;
+    gap: 5px;
+    border-bottom: 1px solid #3a3a4e;
+    margin-bottom: 15px;
+  }
+
+  .tab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab-btn:hover {
+    color: #e4e4e7;
+  }
+
+  .tab-btn.active {
+    color: #61affe;
+    border-bottom-color: #61affe;
+  }
+
+  .tab-content {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .headers-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .header-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .header-key, .header-value {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 13px;
+  }
+
+  .header-key:focus, .header-value:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .remove-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    border: none;
+    background: #3a3a4e;
+    color: #e4e4e7;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .remove-btn:hover {
+    background: #f93e3e;
+    color: #fff;
+  }
+
+  .add-header-btn {
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px dashed #3a3a4e;
+    background: transparent;
+    color: #888;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+
+  .add-header-btn:hover {
+    border-color: #61affe;
+    color: #61affe;
+  }
+
+  .body-section {
+    height: 100%;
+  }
+
+  .body-editor {
+    width: 100%;
+    height: 100%;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-family: Monaco, Menlo, monospace;
+    font-size: 13px;
+    resize: none;
+    box-sizing: border-box;
+  }
+
+  .body-editor:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .placeholder {
+    color: #666;
+    text-align: center;
+    padding: 40px;
+  }
+</style>
