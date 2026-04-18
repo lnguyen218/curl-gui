@@ -5,13 +5,19 @@
   import Sidebar from "./lib/Sidebar.svelte";
   import RequestPanel from "./lib/RequestPanel.svelte";
   import ResponsePanel from "./lib/ResponsePanel.svelte";
-  import type { Header, HttpMethod, SavedRequest, ResponseData } from "./types";
+  import type { Header, HttpMethod, SavedRequest, ResponseData, SslConfig } from "./types";
 
   // Request state
   let method: HttpMethod = "GET";
   let url: string = "";
   let headers: Header[] = [{ key: "", value: "" }];
   let body: string = "";
+  let sslConfig: SslConfig = {
+    verifySsl: true,
+    certPath: "",
+    keyPath: "",
+    caPath: ""
+  };
 
   // Saved requests
   const savedRequests = writable<SavedRequest[]>([]);
@@ -51,6 +57,7 @@
           ? parsed.headers
           : [{ key: "", value: "" }];
         body = parsed.body || "";
+        sslConfig = parsed.sslConfig || { verifySsl: true, certPath: "", keyPath: "", caPath: "" };
       } catch {
         // Keep defaults
       }
@@ -59,7 +66,7 @@
 
   // Auto-save: persist current state whenever it changes
   $: {
-    const state = { method, url, headers, body };
+    const state = { method, url, headers, body, sslConfig };
     localStorage.setItem("curl-gui-current", JSON.stringify(state));
   }
 
@@ -79,6 +86,7 @@
               url,
               headers: JSON.parse(JSON.stringify(headers)),
               body,
+              sslConfig,
             };
           }
           return r;
@@ -101,7 +109,7 @@
     const hdrs: Record<string, string> = {};
     headers.filter(h => h.key && h.value).forEach(h => { hdrs[h.key] = h.value; });
 
-    curlCommand = `curl -X ${method}${Object.entries(hdrs).map(([k, v]) => ` -H "${k}: ${v}"`).join("")}${body && method !== "GET" ? ` -d '${body}'` : ""} "${url}"`;
+    curlCommand = `curl -X ${method}${Object.entries(hdrs).map(([k, v]) => ` -H "${k}: ${v}"`).join("")}${body && method !== "GET" ? ` -d '${body}'` : ""}${!sslConfig.verifySsl ? " --insecure" : ""}${sslConfig.certPath ? ` --cert ${sslConfig.certPath}` : ""}${sslConfig.keyPath ? ` --key ${sslConfig.keyPath}` : ""}${sslConfig.caPath ? ` --cacert ${sslConfig.caPath}` : ""} "${url}"`;
 
     try {
       response = await invoke<ResponseData>("make_request", {
@@ -110,6 +118,10 @@
           url,
           headers: Object.keys(hdrs).length > 0 ? hdrs : undefined,
           body: body || undefined,
+          verify_ssl: sslConfig.verifySsl,
+          ssl_cert: sslConfig.certPath || undefined,
+          ssl_key: sslConfig.keyPath || undefined,
+          ssl_ca: sslConfig.caPath || undefined,
         },
       });
     } catch (e: any) {
@@ -129,6 +141,7 @@
       url,
       headers: JSON.parse(JSON.stringify(headers)),
       body,
+      sslConfig,
       createdAt: editingRequest?.createdAt || Date.now(),
     };
 
@@ -154,6 +167,7 @@
     url = "";
     headers = [{ key: "", value: "" }];
     body = "";
+    sslConfig = { verifySsl: true, certPath: "", keyPath: "", caPath: "" };
     activeRequestId = null;
     response = null;
     error = "";
@@ -165,6 +179,7 @@
     url = saved.url;
     headers = JSON.parse(JSON.stringify(saved.headers));
     body = saved.body;
+    sslConfig = saved.sslConfig || { verifySsl: true, certPath: "", keyPath: "", caPath: "" };
     activeRequestId = saved.id;
     response = null;
     error = "";
@@ -218,6 +233,7 @@
       bind:url
       bind:headers
       bind:body
+      bind:sslConfig
       {loading}
       on:send={sendRequest}
       on:update={autoSaveRequest}

@@ -1,11 +1,17 @@
 <script lang="ts">
-  import type { Header, HttpMethod } from "../types";
+  import type { Header, HttpMethod, SslConfig } from "../types";
   import { createEventDispatcher } from "svelte";
 
   export let method: HttpMethod;
   export let url: string;
   export let headers: Header[];
   export let body: string;
+  export let sslConfig: SslConfig = {
+    verifySsl: true,
+    certPath: "",
+    keyPath: "",
+    caPath: ""
+  };
   export let loading: boolean = false;
 
   const dispatch = createEventDispatcher<{
@@ -13,7 +19,7 @@
     update: void;
   }>();
 
-  let activeTab: "headers" | "body" | "params" = "headers";
+  let activeTab: "headers" | "body" | "params" | "ssl" = "headers";
 
   const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -42,11 +48,30 @@
     headers = headers.map((h, i) => (i === index ? { ...h, [field]: value } : h));
   }
 
+  async function pickFile(field: "certPath" | "keyPath" | "caPath") {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pem,.crt,.cert,.key,.der,.pfx,.p12';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        sslConfig = { ...sslConfig, [field]: file.path || file.name };
+        dispatch("update");
+      }
+    };
+    input.click();
+  }
+
+  function clearFile(field: "certPath" | "keyPath" | "caPath") {
+    sslConfig = { ...sslConfig, [field]: "" };
+    dispatch("update");
+  }
+
   // Auto-save: notify parent whenever any request field changes
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   $: {
     // Trigger when any bound value changes
-    method, url, headers, body;
+    method, url, headers, body, sslConfig;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       dispatch("update");
@@ -83,6 +108,9 @@
       Headers ({headers.filter(h => h.key).length})
     </button>
     <button class="tab-btn" class:active={activeTab === "body"} on:click={() => activeTab = "body"}>Body</button>
+    <button class="tab-btn ssl-tab" class:active={activeTab === "ssl"} on:click={() => activeTab = "ssl"}>
+      🔒 SSL
+    </button>
   </div>
 
   <div class="tab-content">
@@ -116,6 +144,82 @@
           placeholder={`{\n  "key": "value"\n}`} 
           class="body-editor"
         ></textarea>
+      </div>
+    {:else if activeTab === "ssl"}
+      <div class="ssl-section">
+        <div class="ssl-option">
+          <label class="ssl-label">
+            <input 
+              type="checkbox" 
+              bind:checked={sslConfig.verifySsl}
+              class="ssl-checkbox"
+            />
+            <span>Verify SSL Certificate</span>
+          </label>
+          <p class="ssl-hint">
+            {#if sslConfig.verifySsl}
+              SSL certificates will be verified (recommended for production)
+            {:else}
+              ⚠️ SSL verification disabled - insecure, use only for development
+            {/if}
+          </p>
+        </div>
+
+        <div class="ssl-divider"></div>
+
+        <div class="ssl-option">
+          <label class="ssl-label">Client Certificate (Cert)</label>
+          <div class="file-input-row">
+            <input 
+              type="text" 
+              bind:value={sslConfig.certPath}
+              placeholder="/path/to/client-cert.pem"
+              class="file-input"
+              readonly
+            />
+            <button on:click={() => pickFile('certPath')} class="file-btn">Browse</button>
+            {#if sslConfig.certPath}
+              <button on:click={() => clearFile('certPath')} class="clear-btn">Clear</button>
+            {/if}
+          </div>
+          <p class="ssl-hint">Client certificate for mutual TLS authentication</p>
+        </div>
+
+        <div class="ssl-option">
+          <label class="ssl-label">Client Private Key</label>
+          <div class="file-input-row">
+            <input 
+              type="text" 
+              bind:value={sslConfig.keyPath}
+              placeholder="/path/to/client-key.pem"
+              class="file-input"
+              readonly
+            />
+            <button on:click={() => pickFile('keyPath')} class="file-btn">Browse</button>
+            {#if sslConfig.keyPath}
+              <button on:click={() => clearFile('keyPath')} class="clear-btn">Clear</button>
+            {/if}
+          </div>
+          <p class="ssl-hint">Private key corresponding to the client certificate</p>
+        </div>
+
+        <div class="ssl-option">
+          <label class="ssl-label">CA Certificate</label>
+          <div class="file-input-row">
+            <input 
+              type="text" 
+              bind:value={sslConfig.caPath}
+              placeholder="/path/to/ca-cert.pem"
+              class="file-input"
+              readonly
+            />
+            <button on:click={() => pickFile('caPath')} class="file-btn">Browse</button>
+            {#if sslConfig.caPath}
+              <button on:click={() => clearFile('caPath')} class="clear-btn">Clear</button>
+            {/if}
+          </div>
+          <p class="ssl-hint">Custom Certificate Authority for server verification</p>
+        </div>
       </div>
     {:else}
       <div class="params-section">
@@ -237,6 +341,11 @@
     border-bottom-color: #61affe;
   }
 
+  .tab-btn.ssl-tab.active {
+    color: #fca130;
+    border-bottom-color: #fca130;
+  }
+
   .tab-content {
     flex: 1;
     overflow-y: auto;
@@ -325,6 +434,96 @@
   .body-editor:focus {
     outline: none;
     border-color: #61affe;
+  }
+
+  /* SSL Section Styles */
+  .ssl-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px 0;
+  }
+
+  .ssl-option {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ssl-label {
+    color: #e4e4e7;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .ssl-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: #49cc90;
+    cursor: pointer;
+  }
+
+  .ssl-hint {
+    color: #888;
+    font-size: 12px;
+    margin: 0;
+    margin-left: 26px;
+  }
+
+  .ssl-divider {
+    height: 1px;
+    background: #3a3a4e;
+    margin: 10px 0;
+  }
+
+  .file-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .file-input {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 13px;
+    font-family: Monaco, Menlo, monospace;
+  }
+
+  .file-input:placeholder {
+    color: #666;
+  }
+
+  .file-btn, .clear-btn {
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .file-btn {
+    background: #61affe;
+    color: #fff;
+  }
+
+  .clear-btn {
+    background: #3a3a4e;
+    color: #e4e4e7;
+  }
+
+  .file-btn:hover, .clear-btn:hover {
+    opacity: 0.9;
   }
 
   .placeholder {

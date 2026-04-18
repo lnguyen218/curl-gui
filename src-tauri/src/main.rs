@@ -12,6 +12,11 @@ struct HttpRequest {
     url: String,
     headers: Option<HashMap<String, String>>,
     body: Option<String>,
+    // SSL/TLS options
+    verify_ssl: Option<bool>,
+    ssl_cert: Option<String>,
+    ssl_key: Option<String>,
+    ssl_ca: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -125,6 +130,46 @@ async fn make_request(request: HttpRequest) -> Result<HttpResponse, CurlError> {
     // Follow redirects
     easy.follow_location(true);
     easy.max_redirections(10);
+    
+    // SSL/TLS Configuration
+    let verify_ssl = request.verify_ssl.unwrap_or(true);
+    if !verify_ssl {
+        easy.ssl_verify_peer(false);
+        easy.ssl_verify_host(false);
+    }
+    
+    // Client certificate
+    if let Some(cert_path) = &request.ssl_cert {
+        if !cert_path.is_empty() {
+            if let Err(e) = easy.ssl_cert(cert_path) {
+                return Err(CurlError {
+                    error: format!("Failed to set SSL certificate: {}", e),
+                });
+            }
+        }
+    }
+    
+    // Client key
+    if let Some(key_path) = &request.ssl_key {
+        if !key_path.is_empty() {
+            if let Err(e) = easy.ssl_key(key_path) {
+                return Err(CurlError {
+                    error: format!("Failed to set SSL key: {}", e),
+                });
+            }
+        }
+    }
+    
+    // CA certificate
+    if let Some(ca_path) = &request.ssl_ca {
+        if !ca_path.is_empty() {
+            if let Err(e) = easy.cainfo(ca_path) {
+                return Err(CurlError {
+                    error: format!("Failed to set CA certificate: {}", e),
+                });
+            }
+        }
+    }
     
     // Buffers for response - use Arc<Mutex<>> for thread safety
     let response_headers: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));

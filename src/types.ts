@@ -5,6 +5,13 @@ export interface Header {
   value: string;
 }
 
+export interface SslConfig {
+  verifySsl: boolean;
+  certPath: string;
+  keyPath: string;
+  caPath: string;
+}
+
 export interface SavedRequest {
   id: string;
   name: string;
@@ -12,6 +19,7 @@ export interface SavedRequest {
   url: string;
   headers: Header[];
   body: string;
+  sslConfig?: SslConfig;
   createdAt: number;
 }
 
