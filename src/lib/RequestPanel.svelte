@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Header, HttpMethod, SslConfig, AuthConfig } from "../types";
   import { createEventDispatcher } from "svelte";
+  import { open } from "@tauri-apps/plugin-dialog";
 
   export let method: HttpMethod;
   export let url: string;
@@ -58,17 +59,21 @@
   }
 
   async function pickFile(field: "certPath" | "keyPath" | "caPath") {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pem,.crt,.cert,.key,.der,.pfx,.p12';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        sslConfig = { ...sslConfig, [field]: file.path || file.name };
-        dispatch("update");
-      }
-    };
-    input.click();
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "Certificate/Key Files",
+          extensions: ["pem", "crt", "cert", "key", "der", "pfx", "p12"],
+        },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+    console.log({selected})
+    if (selected) {
+      sslConfig = { ...sslConfig, [field]: selected };
+      dispatch("update");
+    }
   }
 
   function clearFile(field: "certPath" | "keyPath" | "caPath") {

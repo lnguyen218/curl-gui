@@ -256,6 +256,7 @@ fn get_status_text(code: u32) -> String {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![make_request])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
