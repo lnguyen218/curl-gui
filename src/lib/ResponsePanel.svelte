@@ -154,6 +154,7 @@
     overflow-x: auto;
     white-space: pre-wrap;
     word-break: break-word;
+    text-align: left;
   }
 
   .response-headers {
