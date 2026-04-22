@@ -6,6 +6,7 @@
   export let curlCommand: string;
 
   let responseTab: "body" | "headers" = "body";
+  let copied = false;
 
   function formatBody(body: string): string {
     try {
@@ -17,6 +18,13 @@
 
   function formatCurl(cmd: string): string {
     return cmd.replace(/ -H /g, " \\\n  -H ").replace(/ -d /g, " \\\n  -d ").replace(/ -X /g, " \\\n  -X ");
+  }
+
+  async function copyBody() {
+    if (!response) return;
+    await navigator.clipboard.writeText(formatBody(response.body));
+    copied = true;
+    setTimeout(() => copied = false, 2000);
   }
 </script>
 
@@ -42,7 +50,16 @@
 
     <div class="tab-content">
       {#if responseTab === "body"}
-        <pre class="response-body">{formatBody(response.body)}</pre>
+        <div class="body-wrapper">
+          <button class="copy-btn" on:click={copyBody} title="Copy to clipboard">
+            {#if copied}
+              <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="#49cc90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            {:else}
+              <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            {/if}
+          </button>
+          <pre class="response-body">{formatBody(response.body)}</pre>
+        </div>
       {:else}
         <div class="response-headers">
           {#each Object.entries(response.headers) as [key, value]}
@@ -141,6 +158,38 @@
   .tab-content {
     flex: 1;
     overflow-y: auto;
+    min-height: 0;
+  }
+
+  .body-wrapper {
+    position: relative;
+  }
+
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #3a3a4e;
+    border: 1px solid #4a4a5e;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .copy-btn:hover {
+    background: #4a4a5e;
+    color: #e4e4e7;
+  }
+
+  .copy-icon {
+    width: 14px;
+    height: 14px;
   }
 
   .response-body {
