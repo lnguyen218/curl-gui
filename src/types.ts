@@ -12,6 +12,19 @@ export interface SslConfig {
   caPath: string;
 }
 
+export interface AuthConfig {
+  type: "none" | "basic" | "bearer" | "api-key";
+  // Basic auth
+  username: string;
+  password: string;
+  // Bearer token
+  token: string;
+  // API Key
+  apiKeyName: string;
+  apiKeyValue: string;
+  apiKeyIn: "header" | "query";
+}
+
 export interface SavedRequest {
   id: string;
   name: string;
@@ -20,6 +33,7 @@ export interface SavedRequest {
   headers: Header[];
   body: string;
   sslConfig?: SslConfig;
+  authConfig?: AuthConfig;
   createdAt: number;
 }
 

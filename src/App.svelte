@@ -5,7 +5,7 @@
   import Sidebar from "./lib/Sidebar.svelte";
   import RequestPanel from "./lib/RequestPanel.svelte";
   import ResponsePanel from "./lib/ResponsePanel.svelte";
-  import type { Header, HttpMethod, SavedRequest, ResponseData, SslConfig } from "./types";
+  import type { Header, HttpMethod, SavedRequest, ResponseData, SslConfig, AuthConfig } from "./types";
 
   // Request state
   let method: HttpMethod = "GET";
@@ -17,6 +17,15 @@
     certPath: "",
     keyPath: "",
     caPath: ""
+  };
+  let authConfig: AuthConfig = {
+    type: "none",
+    username: "",
+    password: "",
+    token: "",
+    apiKeyName: "",
+    apiKeyValue: "",
+    apiKeyIn: "header"
   };
 
   // Saved requests
@@ -58,6 +67,7 @@
           : [{ key: "", value: "" }];
         body = parsed.body || "";
         sslConfig = parsed.sslConfig || { verifySsl: true, certPath: "", keyPath: "", caPath: "" };
+        authConfig = parsed.authConfig || { type: "none", username: "", password: "", token: "", apiKeyName: "", apiKeyValue: "", apiKeyIn: "header" };
       } catch {
         // Keep defaults
       }
@@ -66,7 +76,7 @@
 
   // Auto-save: persist current state whenever it changes
   $: {
-    const state = { method, url, headers, body, sslConfig };
+    const state = { method, url, headers, body, sslConfig, authConfig };
     localStorage.setItem("curl-gui-current", JSON.stringify(state));
   }
 
@@ -87,6 +97,7 @@
               headers: JSON.parse(JSON.stringify(headers)),
               body,
               sslConfig,
+              authConfig,
             };
           }
           return r;
@@ -108,15 +119,37 @@
     
     const hdrs: Record<string, string> = {};
     headers.filter(h => h.key && h.value).forEach(h => { hdrs[h.key] = h.value; });
-
-    curlCommand = `curl -X ${method}${Object.entries(hdrs).map(([k, v]) => ` -H "${k}: ${v}"`).join("")}${body && method !== "GET" ? ` -d '${body}'` : ""}${!sslConfig.verifySsl ? " --insecure" : ""}${sslConfig.certPath ? ` --cert ${sslConfig.certPath}` : ""}${sslConfig.keyPath ? ` --key ${sslConfig.keyPath}` : ""}${sslConfig.caPath ? ` --cacert ${sslConfig.caPath}` : ""} "${url}"`;
+    
+    // Apply authentication
+    let authHeaders: Record<string, string> = {};
+    let authCurlFlags = "";
+    
+    if (authConfig.type === "basic" && authConfig.username) {
+      const encoded = btoa(`${authConfig.username}:${authConfig.password}`);
+      authHeaders["Authorization"] = `Basic ${encoded}`;
+      authCurlFlags = ` -u "${authConfig.username}:${authConfig.password}"`;
+    } else if (authConfig.type === "bearer" && authConfig.token) {
+      authHeaders["Authorization"] = `Bearer ${authConfig.token}`;
+      authCurlFlags = ` -H "Authorization: Bearer ${authConfig.token}"`;
+    } else if (authConfig.type === "api-key" && authConfig.apiKeyName && authConfig.apiKeyValue) {
+      if (authConfig.apiKeyIn === "header") {
+        authHeaders[authConfig.apiKeyName] = authConfig.apiKeyValue;
+        authCurlFlags = ` -H "${authConfig.apiKeyName}: ${authConfig.apiKeyValue}"`;
+      }
+    }
+    
+    // Merge auth headers with user headers
+    const allHeaders = { ...authHeaders, ...hdrs };
+    
+    // Build curl command
+    curlCommand = `curl -X ${method}${Object.entries(hdrs).map(([k, v]) => ` -H "${k}: ${v}"`).join("")}${authCurlFlags}${body && method !== "GET" ? ` -d '${body}'` : ""}${!sslConfig.verifySsl ? " --insecure" : ""}${sslConfig.certPath ? ` --cert ${sslConfig.certPath}` : ""}${sslConfig.keyPath ? ` --key ${sslConfig.keyPath}` : ""}${sslConfig.caPath ? ` --cacert ${sslConfig.caPath}` : ""} "${url}"`;
 
     try {
       response = await invoke<ResponseData>("make_request", {
         request: {
           method,
           url,
-          headers: Object.keys(hdrs).length > 0 ? hdrs : undefined,
+          headers: Object.keys(allHeaders).length > 0 ? allHeaders : undefined,
           body: body || undefined,
           verify_ssl: sslConfig.verifySsl,
           ssl_cert: sslConfig.certPath || undefined,
@@ -142,6 +175,7 @@
       headers: JSON.parse(JSON.stringify(headers)),
       body,
       sslConfig,
+      authConfig,
       createdAt: editingRequest?.createdAt || Date.now(),
     };
 
@@ -168,6 +202,7 @@
     headers = [{ key: "", value: "" }];
     body = "";
     sslConfig = { verifySsl: true, certPath: "", keyPath: "", caPath: "" };
+    authConfig = { type: "none", username: "", password: "", token: "", apiKeyName: "", apiKeyValue: "", apiKeyIn: "header" };
     activeRequestId = null;
     response = null;
     error = "";
@@ -180,6 +215,7 @@
     headers = JSON.parse(JSON.stringify(saved.headers));
     body = saved.body;
     sslConfig = saved.sslConfig || { verifySsl: true, certPath: "", keyPath: "", caPath: "" };
+    authConfig = saved.authConfig || { type: "none", username: "", password: "", token: "", apiKeyName: "", apiKeyValue: "", apiKeyIn: "header" };
     activeRequestId = saved.id;
     response = null;
     error = "";
@@ -234,6 +270,7 @@
       bind:headers
       bind:body
       bind:sslConfig
+      bind:authConfig
       {loading}
       on:send={sendRequest}
       on:update={autoSaveRequest}

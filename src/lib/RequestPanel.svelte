@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Header, HttpMethod, SslConfig } from "../types";
+  import type { Header, HttpMethod, SslConfig, AuthConfig } from "../types";
   import { createEventDispatcher } from "svelte";
 
   export let method: HttpMethod;
@@ -12,6 +12,15 @@
     keyPath: "",
     caPath: ""
   };
+  export let authConfig: AuthConfig = {
+    type: "none",
+    username: "",
+    password: "",
+    token: "",
+    apiKeyName: "",
+    apiKeyValue: "",
+    apiKeyIn: "header"
+  };
   export let loading: boolean = false;
 
   const dispatch = createEventDispatcher<{
@@ -19,7 +28,7 @@
     update: void;
   }>();
 
-  let activeTab: "headers" | "body" | "params" | "ssl" = "headers";
+  let activeTab: "params" | "auth" | "headers" | "body" | "ssl" = "headers";
 
   const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -71,7 +80,7 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   $: {
     // Trigger when any bound value changes
-    method, url, headers, body, sslConfig;
+    method, url, headers, body, sslConfig, authConfig;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       dispatch("update");
@@ -104,6 +113,9 @@
 
   <div class="request-tabs">
     <button class="tab-btn" class:active={activeTab === "params"} on:click={() => activeTab = "params"}>Params</button>
+    <button class="tab-btn auth-tab" class:active={activeTab === "auth"} on:click={() => activeTab = "auth"}>
+      Auth
+    </button>
     <button class="tab-btn" class:active={activeTab === "headers"} on:click={() => activeTab = "headers"}>
       Headers ({headers.filter(h => h.key).length})
     </button>
@@ -144,6 +156,96 @@
           placeholder={`{\n  "key": "value"\n}`} 
           class="body-editor"
         ></textarea>
+      </div>
+    {:else if activeTab === "auth"}
+      <div class="auth-section">
+        <div class="auth-type-row">
+          <label class="auth-label">Authorization Type</label>
+          <select bind:value={authConfig.type} class="auth-select">
+            <option value="none">No Auth</option>
+            <option value="basic">Basic Auth</option>
+            <option value="bearer">Bearer Token</option>
+            <option value="api-key">API Key</option>
+          </select>
+        </div>
+
+        {#if authConfig.type === "basic"}
+          <div class="auth-fields">
+            <div class="auth-field">
+              <label class="auth-label">Username</label>
+              <input 
+                type="text" 
+                bind:value={authConfig.username}
+                placeholder="username"
+                class="auth-input"
+              />
+            </div>
+            <div class="auth-field">
+              <label class="auth-label">Password</label>
+              <input 
+                type="password" 
+                bind:value={authConfig.password}
+                placeholder="password"
+                class="auth-input"
+              />
+            </div>
+          </div>
+        {:else if authConfig.type === "bearer"}
+          <div class="auth-fields">
+            <div class="auth-field">
+              <label class="auth-label">Token</label>
+              <textarea 
+                bind:value={authConfig.token}
+                placeholder="Bearer token..."
+                class="auth-textarea"
+              ></textarea>
+            </div>
+          </div>
+        {:else if authConfig.type === "api-key"}
+          <div class="auth-fields">
+            <div class="auth-field">
+              <label class="auth-label">Key Name</label>
+              <input 
+                type="text" 
+                bind:value={authConfig.apiKeyName}
+                placeholder="X-API-Key"
+                class="auth-input"
+              />
+            </div>
+            <div class="auth-field">
+              <label class="auth-label">Key Value</label>
+              <input 
+                type="text" 
+                bind:value={authConfig.apiKeyValue}
+                placeholder="your-api-key"
+                class="auth-input"
+              />
+            </div>
+            <div class="auth-field">
+              <label class="auth-label">Add To</label>
+              <div class="auth-radio-group">
+                <label class="auth-radio">
+                  <input 
+                    type="radio" 
+                    bind:group={authConfig.apiKeyIn} 
+                    value="header"
+                  />
+                  Header
+                </label>
+                <label class="auth-radio">
+                  <input 
+                    type="radio" 
+                    bind:group={authConfig.apiKeyIn} 
+                    value="query"
+                  />
+                  Query Param
+                </label>
+              </div>
+            </div>
+          </div>
+        {:else}
+          <p class="placeholder">Select an authorization type to configure authentication</p>
+        {/if}
       </div>
     {:else if activeTab === "ssl"}
       <div class="ssl-section">
@@ -341,9 +443,26 @@
     border-bottom-color: #61affe;
   }
 
+  .tab-btn.auth-tab.active {
+    color: #fca130;
+    border-bottom-color: #fca130;
+  }
+
   .tab-btn.ssl-tab.active {
     color: #fca130;
     border-bottom-color: #fca130;
+  }
+
+  .tab-badge {
+    display: inline-block;
+    background: #fca130;
+    color: #1a1a2e;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    text-transform: uppercase;
   }
 
   .tab-content {
@@ -524,6 +643,106 @@
 
   .file-btn:hover, .clear-btn:hover {
     opacity: 0.9;
+  }
+
+  /* Auth Section Styles */
+  .auth-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 10px 0;
+  }
+
+  .auth-type-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .auth-label {
+    color: #e4e4e7;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .auth-select {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .auth-select:focus {
+    outline: none;
+    border-color: #fca130;
+  }
+
+  .auth-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .auth-input {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+  }
+
+  .auth-input:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .auth-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-family: Monaco, Menlo, monospace;
+    font-size: 13px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .auth-textarea:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .auth-radio-group {
+    display: flex;
+    gap: 20px;
+    padding: 8px 0;
+  }
+
+  .auth-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #e4e4e7;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .auth-radio input[type="radio"] {
+    accent-color: #61affe;
+    cursor: pointer;
   }
 
   .placeholder {
