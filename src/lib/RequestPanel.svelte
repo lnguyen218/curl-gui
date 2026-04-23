@@ -69,7 +69,6 @@
         { name: "All Files", extensions: ["*"] },
       ],
     });
-    console.log({selected})
     if (selected) {
       sslConfig = { ...sslConfig, [field]: selected };
       dispatch("update");

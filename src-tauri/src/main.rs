@@ -46,38 +46,44 @@ async fn make_request(request: HttpRequest) -> Result<HttpResponse, CurlError> {
         });
     }
     
+    let method_upper = request.method.to_uppercase();
+    let has_body = request.body.as_ref().map(|b| !b.is_empty()).unwrap_or(false);
+
     // Set method
-    match request.method.to_uppercase().as_str() {
+    match method_upper.as_str() {
         "GET" => easy.get(true),
         "POST" => easy.post(true),
         "PUT" => {
-            easy.put(true);
-            Ok(())
+            // Enable POST body machinery so read_function + post_field_size work
+            easy.post(true);
+            easy.custom_request("PUT")
         }
         "DELETE" => {
-            easy.custom_request("DELETE");
-            Ok(())
+            if has_body {
+                easy.post(true);
+            }
+            easy.custom_request("DELETE")
         }
         "PATCH" => {
-            easy.custom_request("PATCH");
-            Ok(())
+            easy.post(true);
+            easy.custom_request("PATCH")
         }
         "HEAD" => {
             easy.nobody(true);
             Ok(())
         }
         "OPTIONS" => {
-            easy.custom_request("OPTIONS");
-            Ok(())
+            easy.custom_request("OPTIONS")
         }
         _ => easy.get(true),
     }.map_err(|e| CurlError {
         error: format!("Failed to set HTTP method: {}", e),
     })?;
-    
+
     // Set headers
     let mut header_list = curl::easy::List::new();
     let mut has_headers = false;
+    let mut has_content_type = false;
     if let Some(ref headers) = request.headers {
         for (key, value) in headers {
             if !key.to_lowercase().contains("transfer-encoding") && !key.is_empty() {
@@ -87,10 +93,23 @@ async fn make_request(request: HttpRequest) -> Result<HttpResponse, CurlError> {
                     });
                 }
                 has_headers = true;
+                if key.to_lowercase() == "content-type" {
+                    has_content_type = true;
+                }
             }
         }
     }
-    
+
+    // Default Content-Type for requests with a body
+    if has_body && !has_content_type {
+        if let Err(e) = header_list.append("Content-Type: application/json") {
+            return Err(CurlError {
+                error: format!("Failed to add default Content-Type header: {}", e),
+            });
+        }
+        has_headers = true;
+    }
+
     if has_headers {
         if let Err(e) = easy.http_headers(header_list) {
             return Err(CurlError {
@@ -104,7 +123,7 @@ async fn make_request(request: HttpRequest) -> Result<HttpResponse, CurlError> {
     let body_for_read = Arc::new(Mutex::new(body_data.clone()));
     let body_cursor = Arc::new(Mutex::new(0usize));
     
-    if !body_data.is_empty() && request.method.to_uppercase() != "GET" {
+    if !body_data.is_empty() && method_upper != "GET" {
         easy.post_field_size(body_data.len() as u64);
         
         let body_for_read_clone = Arc::clone(&body_for_read);
