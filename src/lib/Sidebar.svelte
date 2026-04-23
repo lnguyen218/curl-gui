@@ -12,6 +12,7 @@
     edit: SavedRequest;
     saveNew: void;
     search: string;
+    openSsl: void;
   }>();
 
   const getMethodColor = (method: HttpMethod): string => {
@@ -50,12 +51,20 @@
       <span class="divider">|</span>
       <span class="app-name">GUI</span>
     </div>
-    <button class="new-request-btn" on:click={() => dispatch("saveNew")} title="Save current request">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
-    </button>
+    <div class="header-actions">
+      <button class="ssl-btn" on:click={() => dispatch("openSsl")} title="SSL Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </button>
+      <button class="new-request-btn" on:click={() => dispatch("saveNew")} title="Save current request">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="search-box">
@@ -143,13 +152,17 @@
     color: #e4e4e7;
   }
 
-  .new-request-btn {
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ssl-btn, .new-request-btn {
     width: 28px;
     height: 28px;
     border-radius: 6px;
     border: none;
-    background: #49cc90;
-    color: #fff;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -157,14 +170,34 @@
     transition: all 0.2s;
   }
 
+  .ssl-btn {
+    background: #3a3a4e;
+    color: #fca130;
+  }
+
+  .ssl-btn:hover {
+    background: #4a4a5e;
+    transform: scale(1.05);
+  }
+
+  .new-request-btn {
+    background: #49cc90;
+    color: #fff;
+  }
+
   .new-request-btn:hover {
     opacity: 0.9;
     transform: scale(1.05);
   }
 
-  .new-request-btn svg {
+  .ssl-btn svg, .new-request-btn svg {
     width: 16px;
     height: 16px;
+  }
+
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
   }
 
   .search-box {
@@ -222,18 +255,10 @@
     border-color: #3a3a4e;
   }
 
-  .saved-request-item:hover .request-actions {
-    opacity: 1;
-  }
-
   .saved-request-item.active {
     background: #2a2a3e;
     border-color: #61affe;
     box-shadow: 0 0 0 1px #61affe;
-  }
-
-  .saved-request-item.active .request-actions {
-    opacity: 1;
   }
 
   .request-info {
@@ -274,8 +299,13 @@
     right: 8px;
     display: flex;
     gap: 4px;
-    opacity: 0;
+    opacity: 0.5;
     transition: opacity 0.2s;
+  }
+
+  .saved-request-item:hover .request-actions,
+  .saved-request-item.active .request-actions {
+    opacity: 1;
   }
 
   .action-btn {

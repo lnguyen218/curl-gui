@@ -32,7 +32,6 @@ export interface SavedRequest {
   url: string;
   headers: Header[];
   body: string;
-  sslConfig?: SslConfig;
   authConfig?: AuthConfig;
   createdAt: number;
 }

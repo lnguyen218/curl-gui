@@ -1,18 +1,11 @@
 <script lang="ts">
-  import type { Header, HttpMethod, SslConfig, AuthConfig } from "../types";
+  import type { Header, HttpMethod, AuthConfig } from "../types";
   import { createEventDispatcher } from "svelte";
-  import { open } from "@tauri-apps/plugin-dialog";
 
   export let method: HttpMethod;
   export let url: string;
   export let headers: Header[];
   export let body: string;
-  export let sslConfig: SslConfig = {
-    verifySsl: true,
-    certPath: "",
-    keyPath: "",
-    caPath: ""
-  };
   export let authConfig: AuthConfig = {
     type: "none",
     username: "",
@@ -29,7 +22,7 @@
     update: void;
   }>();
 
-  let activeTab: "params" | "auth" | "headers" | "body" | "ssl" = "headers";
+  let activeTab: "params" | "auth" | "headers" | "body" = "headers";
 
   const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -58,33 +51,11 @@
     headers = headers.map((h, i) => (i === index ? { ...h, [field]: value } : h));
   }
 
-  async function pickFile(field: "certPath" | "keyPath" | "caPath") {
-    const selected = await open({
-      multiple: false,
-      filters: [
-        {
-          name: "Certificate/Key Files",
-          extensions: ["pem", "crt", "cert", "key", "der", "pfx", "p12"],
-        },
-        { name: "All Files", extensions: ["*"] },
-      ],
-    });
-    if (selected) {
-      sslConfig = { ...sslConfig, [field]: selected };
-      dispatch("update");
-    }
-  }
-
-  function clearFile(field: "certPath" | "keyPath" | "caPath") {
-    sslConfig = { ...sslConfig, [field]: "" };
-    dispatch("update");
-  }
-
   // Auto-save: notify parent whenever any request field changes
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   $: {
     // Trigger when any bound value changes
-    method, url, headers, body, sslConfig, authConfig;
+    method, url, headers, body, authConfig;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       dispatch("update");
@@ -124,9 +95,6 @@
       Headers ({headers.filter(h => h.key).length})
     </button>
     <button class="tab-btn" class:active={activeTab === "body"} on:click={() => activeTab = "body"}>Body</button>
-    <button class="tab-btn ssl-tab" class:active={activeTab === "ssl"} on:click={() => activeTab = "ssl"}>
-      🔒 SSL
-    </button>
   </div>
 
   <div class="tab-content">
@@ -250,82 +218,6 @@
         {:else}
           <p class="placeholder">Select an authorization type to configure authentication</p>
         {/if}
-      </div>
-    {:else if activeTab === "ssl"}
-      <div class="ssl-section">
-        <div class="ssl-option">
-          <label class="ssl-label">
-            <input 
-              type="checkbox" 
-              bind:checked={sslConfig.verifySsl}
-              class="ssl-checkbox"
-            />
-            <span>Verify SSL Certificate</span>
-          </label>
-          <p class="ssl-hint">
-            {#if sslConfig.verifySsl}
-              SSL certificates will be verified (recommended for production)
-            {:else}
-              ⚠️ SSL verification disabled - insecure, use only for development
-            {/if}
-          </p>
-        </div>
-
-        <div class="ssl-divider"></div>
-
-        <div class="ssl-option">
-          <label class="ssl-label">Client Certificate (Cert)</label>
-          <div class="file-input-row">
-            <input 
-              type="text" 
-              bind:value={sslConfig.certPath}
-              placeholder="/path/to/client-cert.pem"
-              class="file-input"
-              readonly
-            />
-            <button on:click={() => pickFile('certPath')} class="file-btn">Browse</button>
-            {#if sslConfig.certPath}
-              <button on:click={() => clearFile('certPath')} class="clear-btn">Clear</button>
-            {/if}
-          </div>
-          <p class="ssl-hint">Client certificate for mutual TLS authentication</p>
-        </div>
-
-        <div class="ssl-option">
-          <label class="ssl-label">Client Private Key</label>
-          <div class="file-input-row">
-            <input 
-              type="text" 
-              bind:value={sslConfig.keyPath}
-              placeholder="/path/to/client-key.pem"
-              class="file-input"
-              readonly
-            />
-            <button on:click={() => pickFile('keyPath')} class="file-btn">Browse</button>
-            {#if sslConfig.keyPath}
-              <button on:click={() => clearFile('keyPath')} class="clear-btn">Clear</button>
-            {/if}
-          </div>
-          <p class="ssl-hint">Private key corresponding to the client certificate</p>
-        </div>
-
-        <div class="ssl-option">
-          <label class="ssl-label">CA Certificate</label>
-          <div class="file-input-row">
-            <input 
-              type="text" 
-              bind:value={sslConfig.caPath}
-              placeholder="/path/to/ca-cert.pem"
-              class="file-input"
-              readonly
-            />
-            <button on:click={() => pickFile('caPath')} class="file-btn">Browse</button>
-            {#if sslConfig.caPath}
-              <button on:click={() => clearFile('caPath')} class="clear-btn">Clear</button>
-            {/if}
-          </div>
-          <p class="ssl-hint">Custom Certificate Authority for server verification</p>
-        </div>
       </div>
     {:else}
       <div class="params-section">
