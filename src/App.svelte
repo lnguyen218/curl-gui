@@ -118,6 +118,7 @@
               authConfig,
               response: response || undefined,
               curlCommand: curlCommand || undefined,
+              error: error || undefined,
             };
           }
           return r;
@@ -183,6 +184,8 @@
       error = e.error || e.toString();
     } finally {
       loading = false;
+      // Auto-save response to the active request
+      autoSaveRequest();
     }
   }
 
@@ -200,6 +203,7 @@
       createdAt: editingRequest?.createdAt || Date.now(),
       response: response || undefined,
       curlCommand: curlCommand || undefined,
+      error: error || undefined,
     };
 
     savedRequests.update(reqs => {
@@ -239,7 +243,7 @@
     authConfig = saved.authConfig || { type: "none", username: "", password: "", token: "", apiKeyName: "", apiKeyValue: "", apiKeyIn: "header" };
     activeRequestId = saved.id;
     response = saved.response || null;
-    error = "";
+    error = saved.error || "";
     curlCommand = saved.curlCommand || "";
   }
 

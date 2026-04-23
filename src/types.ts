@@ -36,6 +36,7 @@ export interface SavedRequest {
   createdAt: number;
   response?: ResponseData;
   curlCommand?: string;
+  error?: string;
 }
 
 export interface ResponseData {
