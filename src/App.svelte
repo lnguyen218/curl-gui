@@ -129,12 +129,14 @@
       authHeaders["Authorization"] = `Basic ${encoded}`;
       authCurlFlags = ` -u "${authConfig.username}:${authConfig.password}"`;
     } else if (authConfig.type === "bearer" && authConfig.token) {
-      authHeaders["Authorization"] = `Bearer ${authConfig.token}`;
-      authCurlFlags = ` -H "Authorization: Bearer ${authConfig.token}"`;
+      const token = authConfig.token.trim();
+      authHeaders["Authorization"] = `Bearer ${token}`;
+      authCurlFlags = ` -H "Authorization: Bearer ${token}"`;
     } else if (authConfig.type === "api-key" && authConfig.apiKeyName && authConfig.apiKeyValue) {
+      const apiKeyValue = authConfig.apiKeyValue.trim();
       if (authConfig.apiKeyIn === "header") {
-        authHeaders[authConfig.apiKeyName] = authConfig.apiKeyValue;
-        authCurlFlags = ` -H "${authConfig.apiKeyName}: ${authConfig.apiKeyValue}"`;
+        authHeaders[authConfig.apiKeyName] = apiKeyValue;
+        authCurlFlags = ` -H "${authConfig.apiKeyName}: ${apiKeyValue}"`;
       }
     }
     
