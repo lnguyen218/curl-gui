@@ -23,6 +23,16 @@
   }>();
 
   let activeTab: "params" | "auth" | "headers" | "body" = "headers";
+  let showToken = false;
+
+  // Track authConfig reference to reset showToken when loading a different request
+  let lastAuthRef = authConfig;
+  $: {
+    if (authConfig !== lastAuthRef) {
+      showToken = false;
+      lastAuthRef = authConfig;
+    }
+  }
 
   const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
@@ -170,11 +180,33 @@
           <div class="auth-fields">
             <div class="auth-field">
               <label class="auth-label">Token</label>
-              <textarea 
-                bind:value={authConfig.token}
-                placeholder="Bearer token..."
-                class="auth-textarea"
-              ></textarea>
+              <div class="token-input-wrapper">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={authConfig.token}
+                  on:input={(e) => authConfig.token = e.currentTarget.value}
+                  placeholder="Bearer token..."
+                  class="auth-input token-input"
+                />
+                <button
+                  class="toggle-token-btn"
+                  on:click={() => showToken = !showToken}
+                  title={showToken ? "Hide token" : "Show token"}
+                  type="button"
+                >
+                  {#if showToken}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  {:else}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                      <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                  {/if}
+                </button>
+              </div>
             </div>
           </div>
         {:else if authConfig.type === "api-key"}
@@ -511,25 +543,6 @@
     border-color: #61affe;
   }
 
-  .auth-textarea {
-    width: 100%;
-    min-height: 80px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    border: 1px solid #3a3a4e;
-    background: #2a2a3e;
-    color: #e4e4e7;
-    font-family: Monaco, Menlo, monospace;
-    font-size: 13px;
-    resize: vertical;
-    box-sizing: border-box;
-  }
-
-  .auth-textarea:focus {
-    outline: none;
-    border-color: #61affe;
-  }
-
   .auth-radio-group {
     display: flex;
     gap: 20px;
@@ -548,6 +561,46 @@
   .auth-radio input[type="radio"] {
     accent-color: #61affe;
     cursor: pointer;
+  }
+
+  /* Token toggle */
+  .token-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .token-input {
+    width: 100%;
+    padding-right: 40px;
+  }
+
+  .toggle-token-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .toggle-token-btn:hover {
+    background: #3a3a4e;
+    color: #e4e4e7;
+  }
+
+  .toggle-token-btn svg {
+    width: 16px;
+    height: 16px;
   }
 
   .placeholder {

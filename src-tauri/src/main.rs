@@ -86,6 +86,8 @@ async fn make_request(request: HttpRequest) -> Result<HttpResponse, CurlError> {
     let mut has_content_type = false;
     if let Some(ref headers) = request.headers {
         for (key, value) in headers {
+            let key = key.trim();
+            let value = value.trim();
             if !key.to_lowercase().contains("transfer-encoding") && !key.is_empty() {
                 if let Err(e) = header_list.append(&format!("{}: {}", key, value)) {
                     return Err(CurlError {
