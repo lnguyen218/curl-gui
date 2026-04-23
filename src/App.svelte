@@ -116,6 +116,8 @@
               headers: JSON.parse(JSON.stringify(headers)),
               body,
               authConfig,
+              response: response || undefined,
+              curlCommand: curlCommand || undefined,
             };
           }
           return r;
@@ -196,6 +198,8 @@
       body,
       authConfig,
       createdAt: editingRequest?.createdAt || Date.now(),
+      response: response || undefined,
+      curlCommand: curlCommand || undefined,
     };
 
     savedRequests.update(reqs => {
@@ -234,9 +238,9 @@
     body = saved.body;
     authConfig = saved.authConfig || { type: "none", username: "", password: "", token: "", apiKeyName: "", apiKeyValue: "", apiKeyIn: "header" };
     activeRequestId = saved.id;
-    response = null;
+    response = saved.response || null;
     error = "";
-    curlCommand = "";
+    curlCommand = saved.curlCommand || "";
   }
 
   function deleteRequest(id: string) {

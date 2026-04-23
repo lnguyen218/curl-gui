@@ -34,6 +34,8 @@ export interface SavedRequest {
   body: string;
   authConfig?: AuthConfig;
   createdAt: number;
+  response?: ResponseData;
+  curlCommand?: string;
 }
 
 export interface ResponseData {
