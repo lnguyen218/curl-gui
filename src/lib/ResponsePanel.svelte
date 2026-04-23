@@ -1,9 +1,12 @@
 <script lang="ts">
   import type { ResponseData } from "../types";
+  import { createEventDispatcher } from "svelte";
 
   export let response: ResponseData | null;
   export let error: string;
   export let curlCommand: string;
+
+  const dispatch = createEventDispatcher<{ clear: void }>();
 
   let responseTab: "body" | "headers" = "body";
   let copied = false;
@@ -39,6 +42,12 @@
         {response.status_code} {response.status_text}
       </span>
       <span class="response-time">{response.time_ms}ms</span>
+      <button class="clear-btn" on:click={() => dispatch("clear")} title="Clear response">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </button>
     </div>
 
     <div class="response-tabs">
@@ -278,5 +287,30 @@
     align-items: center;
     justify-content: center;
     color: #666;
+  }
+
+  .clear-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: none;
+    background: #3a3a4e;
+    color: #888;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-left: auto;
+  }
+
+  .clear-btn:hover {
+    background: #f93e3e;
+    color: #fff;
+  }
+
+  .clear-btn svg {
+    width: 14px;
+    height: 14px;
   }
 </style>

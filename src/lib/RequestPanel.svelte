@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Header, HttpMethod, AuthConfig } from "../types";
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onDestroy } from "svelte";
 
   export let method: HttpMethod;
   export let url: string;
@@ -61,6 +61,10 @@
       dispatch("update");
     }, 300);
   }
+
+  onDestroy(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+  });
 </script>
 
 <div class="request-panel">
@@ -344,11 +348,6 @@
     border-bottom-color: #fca130;
   }
 
-  .tab-btn.ssl-tab.active {
-    color: #fca130;
-    border-bottom-color: #fca130;
-  }
-
   .tab-badge {
     display: inline-block;
     background: #fca130;
@@ -449,96 +448,6 @@
   .body-editor:focus {
     outline: none;
     border-color: #61affe;
-  }
-
-  /* SSL Section Styles */
-  .ssl-section {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 10px 0;
-  }
-
-  .ssl-option {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .ssl-label {
-    color: #e4e4e7;
-    font-size: 13px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-  }
-
-  .ssl-checkbox {
-    width: 16px;
-    height: 16px;
-    accent-color: #49cc90;
-    cursor: pointer;
-  }
-
-  .ssl-hint {
-    color: #888;
-    font-size: 12px;
-    margin: 0;
-    margin-left: 26px;
-  }
-
-  .ssl-divider {
-    height: 1px;
-    background: #3a3a4e;
-    margin: 10px 0;
-  }
-
-  .file-input-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-
-  .file-input {
-    flex: 1;
-    padding: 10px 12px;
-    border-radius: 6px;
-    border: 1px solid #3a3a4e;
-    background: #2a2a3e;
-    color: #e4e4e7;
-    font-size: 13px;
-    font-family: Monaco, Menlo, monospace;
-  }
-
-  .file-input:placeholder {
-    color: #666;
-  }
-
-  .file-btn, .clear-btn {
-    padding: 10px 16px;
-    border-radius: 6px;
-    border: none;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    white-space: nowrap;
-  }
-
-  .file-btn {
-    background: #61affe;
-    color: #fff;
-  }
-
-  .clear-btn {
-    background: #3a3a4e;
-    color: #e4e4e7;
-  }
-
-  .file-btn:hover, .clear-btn:hover {
-    opacity: 0.9;
   }
 
   /* Auth Section Styles */

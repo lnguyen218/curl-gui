@@ -283,6 +283,13 @@
     showSslModal = false;
   }
 
+  function clearResponse() {
+    response = null;
+    error = "";
+    curlCommand = "";
+    autoSaveRequest();
+  }
+
   import { open } from "@tauri-apps/plugin-dialog";
 
   async function pickFile(field: "certPath" | "keyPath" | "caPath") {
@@ -337,6 +344,7 @@
       {response}
       {error}
       {curlCommand}
+      on:clear={clearResponse}
     />
   </div>
 </main>
