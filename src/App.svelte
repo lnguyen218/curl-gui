@@ -208,7 +208,8 @@
 
     savedRequests.update(reqs => {
       if (editingRequest) {
-        return reqs.map(r => r.id === editingRequest.id ? newReq : r);
+        const id = editingRequest.id;
+        return reqs.map(r => r.id === id ? newReq : r);
       }
       return [newReq, ...reqs];
     });
