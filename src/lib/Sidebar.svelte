@@ -119,7 +119,8 @@
       if (dragOverRequestId && dragOverRequestId !== draggingRequestId) {
         // Reorder around the target request: if top half, insert before target; otherwise after
         // and adopt the target's folder when dropping onto a request in a folder
-        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestTop ? dragOverRequestId : null, folderId: dragOverFolderId });
+        const targetRequest = savedRequests.find(r => r.id === dragOverRequestId);
+        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestTop ? dragOverRequestId : null, folderId: targetRequest?.folderId ?? null });
       } else if (dragOverFolderId) {
         dispatch("moveRequest", { requestId: draggingRequestId, folderId: dragOverFolderId });
       } else if (dragOverRoot) {
