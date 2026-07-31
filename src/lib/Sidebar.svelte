@@ -58,6 +58,7 @@
   let dragOverFolderId: string | null = null;
   let dragOverRoot = false;
   let dragOverRequestId: string | null = null;
+  let dragOverRequestTop = false;
   let dragPos = { x: 0, y: 0 };
   let dragMode: "request" | "folder" | null = null;
 
@@ -93,13 +94,21 @@
 
     dragOverFolderId = folderEl?.dataset.dropFolderId || null;
     dragOverRoot = !!rootEl;
-    dragOverRequestId = requestEl?.dataset.dropRequestId || null;
+    if (requestEl) {
+      dragOverRequestId = requestEl.dataset.dropRequestId || null;
+      const rect = requestEl.getBoundingClientRect();
+      dragOverRequestTop = e.clientY - rect.top < rect.height / 2;
+    } else {
+      dragOverRequestId = null;
+      dragOverRequestTop = false;
+    }
   }
 
   function onPointerUpGlobal() {
     if (dragMode === "request" && draggingRequestId) {
       if (dragOverRequestId && dragOverRequestId !== draggingRequestId) {
-        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestId });
+        // Reorder around the target request: if top half, insert before; otherwise after
+        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestTop ? dragOverRequestId : null });
       } else if (dragOverFolderId) {
         dispatch("moveRequest", { requestId: draggingRequestId, folderId: dragOverFolderId });
       } else if (dragOverRoot) {
@@ -118,6 +127,7 @@
     dragOverFolderId = null;
     dragOverRoot = false;
     dragOverRequestId = null;
+    dragOverRequestTop = false;
     dragMode = null;
   }
 
@@ -172,7 +182,10 @@
     />
   </div>
 
-  <div class="saved-requests">
+  <div 
+    class="saved-requests"
+    class:dragging-request={!!draggingRequestId}
+  >
     {#if filteredRequests.length === 0 && folders.length === 0}
       <div class="empty-sidebar">
         {#if searchFilter}
@@ -264,7 +277,9 @@
                 <RequestItem 
                   {saved}
                   {activeRequestId}
-                  data-drop-request-id={saved.id}
+                  dropRequestId={saved.id}
+                  isDropBefore={dragOverRequestId === saved.id && dragOverRequestTop}
+                  isDropAfter={dragOverRequestId === saved.id && !dragOverRequestTop}
                   on:load={() => onRequestClick(saved)}
                   on:delete={(e) => dispatch("delete", e.detail)}
                   on:edit={(e) => dispatch("edit", e.detail)}
@@ -284,7 +299,9 @@
           <RequestItem 
             {saved}
             {activeRequestId}
-            data-drop-request-id={saved.id}
+            dropRequestId={saved.id}
+            isDropBefore={dragOverRequestId === saved.id && dragOverRequestTop}
+            isDropAfter={dragOverRequestId === saved.id && !dragOverRequestTop}
             on:load={() => onRequestClick(saved)}
             on:delete={(e) => dispatch("delete", e.detail)}
             on:edit={(e) => dispatch("edit", e.detail)}

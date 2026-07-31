@@ -346,8 +346,15 @@
       const idx = list.findIndex(r => r.id === requestId);
       if (idx === -1) return list;
       const [moved] = list.splice(idx, 1);
-      const targetIdx = beforeId ? list.findIndex(r => r.id === beforeId) : list.length;
-      const insertIdx = targetIdx === -1 ? list.length : targetIdx;
+      const sameFolderList = list.filter(r => r.folderId === moved.folderId);
+      let insertIdx;
+      if (beforeId) {
+        insertIdx = list.findIndex(r => r.id === beforeId);
+      } else {
+        const lastInFolderIdx = list.map((r, i) => ({ i, r })).filter(({ r }) => r.folderId === moved.folderId).pop()?.i ?? -1;
+        insertIdx = lastInFolderIdx + 1;
+      }
+      if (insertIdx === -1) insertIdx = list.length;
       list.splice(insertIdx, 0, moved);
       return list.map((r, i) => ({ ...r, order: i }));
     });

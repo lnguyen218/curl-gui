@@ -5,12 +5,16 @@
   export let saved: SavedRequest;
   export let activeRequestId: string | null = null;
   export let dropRequestId: string | undefined = undefined;
+  export let isDropBefore = false;
+  export let isDropAfter = false;
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   type $$Props = {
     saved: SavedRequest;
     activeRequestId?: string | null;
     dropRequestId?: string;
+    isDropBefore?: boolean;
+    isDropAfter?: boolean;
     // allow parent to set data attribute for drop detection
     "data-drop-request-id"?: string;
   };
@@ -61,6 +65,8 @@
   class="saved-request-item" 
   class:active={saved.id === activeRequestId} 
   class:dragging
+  class:drop-before={isDropBefore}
+  class:drop-after={isDropAfter}
   data-drop-request-id={dropRequestId || saved.id}
   on:pointerdown={onPointerDown}
   on:click={onClick}
@@ -124,6 +130,20 @@
 
   .saved-request-item.dragging {
     opacity: 0.5;
+  }
+
+  .saved-request-item.drop-before {
+    border-top: 2px solid #60a5fa;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-top: 4px;
+  }
+
+  .saved-request-item.drop-after {
+    border-bottom: 2px solid #60a5fa;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-bottom: 10px;
   }
 
   .request-info {
