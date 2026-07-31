@@ -339,23 +339,26 @@
     savedRequests.update(reqs => reqs.map(r => r.id === requestId ? { ...r, folderId } : r));
   }
 
-  function reorderRequest(e: CustomEvent<{ requestId: string; beforeId: string | null }>) {
-    const { requestId, beforeId } = e.detail;
+  function reorderRequest(e: CustomEvent<{ requestId: string; beforeId: string | null; folderId?: string | null }>) {
+    const { requestId, beforeId, folderId: dropFolderId } = e.detail;
     savedRequests.update(reqs => {
       const list = reqs.slice();
       const idx = list.findIndex(r => r.id === requestId);
       if (idx === -1) return list;
       const [moved] = list.splice(idx, 1);
-      const sameFolderList = list.filter(r => r.folderId === moved.folderId);
+      // If dropped onto a request in a folder, adopt that folder
+      const targetFolderId = dropFolderId !== undefined ? dropFolderId : moved.folderId;
+      const sameFolderList = list.filter(r => r.folderId === targetFolderId);
       let insertIdx;
       if (beforeId) {
         insertIdx = list.findIndex(r => r.id === beforeId);
       } else {
-        const lastInFolderIdx = list.map((r, i) => ({ i, r })).filter(({ r }) => r.folderId === moved.folderId).pop()?.i ?? -1;
+        const lastInFolderIdx = list.map((r, i) => ({ i, r })).filter(({ r }) => r.folderId === targetFolderId).pop()?.i ?? -1;
         insertIdx = lastInFolderIdx + 1;
       }
       if (insertIdx === -1) insertIdx = list.length;
-      list.splice(insertIdx, 0, moved);
+      const withFolder = { ...moved, folderId: targetFolderId };
+      list.splice(insertIdx, 0, withFolder);
       return list.map((r, i) => ({ ...r, order: i }));
     });
   }

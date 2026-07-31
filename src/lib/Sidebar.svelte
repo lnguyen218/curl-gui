@@ -21,7 +21,7 @@
     deleteFolder: RequestFolder;
     selectFolder: string | null;
     moveRequest: { requestId: string; folderId: string | null };
-    reorderRequest: { requestId: string; beforeId: string | null };
+    reorderRequest: { requestId: string; beforeId: string | null; folderId?: string | null };
     reorderFolder: { folderId: string; beforeId: string | null };
   }>();
 
@@ -100,9 +100,10 @@
     const folderEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropFolderId) as HTMLElement | undefined;
     const rootEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropRoot) as HTMLElement | undefined;
     const requestEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropRequestId) as HTMLElement | undefined;
+    const listEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropList === "requests") as HTMLElement | undefined;
 
     dragOverFolderId = folderEl?.dataset.dropFolderId || null;
-    dragOverRoot = !!rootEl;
+    dragOverRoot = !!rootEl || (!!listEl && !requestEl);
     if (requestEl) {
       dragOverRequestId = requestEl.dataset.dropRequestId || null;
       const rect = requestEl.getBoundingClientRect();
@@ -116,8 +117,9 @@
   function onPointerUpGlobal() {
     if (dragMode === "request" && draggingRequestId) {
       if (dragOverRequestId && dragOverRequestId !== draggingRequestId) {
-        // Reorder around the target request: if top half, insert before; otherwise after
-        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestTop ? dragOverRequestId : null });
+        // Reorder around the target request: if top half, insert before target; otherwise after
+        // and adopt the target's folder when dropping onto a request in a folder
+        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestTop ? dragOverRequestId : null, folderId: dragOverFolderId });
       } else if (dragOverFolderId) {
         dispatch("moveRequest", { requestId: draggingRequestId, folderId: dragOverFolderId });
       } else if (dragOverRoot) {
