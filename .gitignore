@@ -51,3 +51,10 @@ Cargo.lock
 
 # Lock files (keep package manager consistency)
 # pnpm-lock.yaml is kept by default
+
+# Local development TLS certificates
+localhost.crt
+localhost.key
+*.pem
+*.key
+*.cert
