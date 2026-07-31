@@ -5,7 +5,7 @@
   import Sidebar from "./lib/Sidebar.svelte";
   import RequestPanel from "./lib/RequestPanel.svelte";
   import ResponsePanel from "./lib/ResponsePanel.svelte";
-  import type { Header, HttpMethod, SavedRequest, ResponseData, SslConfig, AuthConfig } from "./types";
+  import type { Header, HttpMethod, SavedRequest, SslConfig, AuthConfig, RequestFolder, ResponseData } from "./types";
 
   // Request state
   let method: HttpMethod = "GET";
@@ -30,8 +30,9 @@
     caPath: ""
   };
 
-  // Saved requests
+  // Saved requests and folders
   const savedRequests = writable<SavedRequest[]>([]);
+  const folders = writable<RequestFolder[]>([]);
   
   // UI state
   let activeRequestId: string | null = null;
@@ -40,16 +41,33 @@
   let error = "";
   let curlCommand = "";
   let searchFilter = "";
+  let selectedFolderId: string | null = null;
   
   // Modal state
   let showModal = false;
   let modalName = "";
   let editingRequest: SavedRequest | null = null;
+  let modalFolderId: string | null = null;
 
   // SSL settings modal
   let showSslModal = false;
 
+  // Folder modal
+  let showFolderModal = false;
+  let folderModalName = "";
+  let editingFolder: RequestFolder | null = null;
+
   onMount(() => {
+    // Load folders
+    const savedFolders = localStorage.getItem("curl-gui-folders");
+    if (savedFolders) {
+      try {
+        folders.set(JSON.parse(savedFolders));
+      } catch {
+        folders.set([]);
+      }
+    }
+
     // Load saved requests
     const saved = localStorage.getItem("curl-gui-saved-requests");
     if (saved) {
@@ -99,7 +117,13 @@
     localStorage.setItem("curl-gui-ssl", JSON.stringify(sslConfig));
   }
 
-  function persistRequests() {
+  // Auto-save: persist folders whenever they change
+  $: {
+    localStorage.setItem("curl-gui-folders", JSON.stringify($folders));
+  }
+
+  // Auto-save: persist saved requests whenever they change
+  $: {
     localStorage.setItem("curl-gui-saved-requests", JSON.stringify($savedRequests));
   }
 
@@ -124,7 +148,7 @@
           return r;
         });
       });
-      persistRequests();
+      // Auto-save reactive block handles persistence
     }
   }
 
@@ -204,6 +228,7 @@
       response: response || undefined,
       curlCommand: curlCommand || undefined,
       error: error || undefined,
+      folderId: modalFolderId,
     };
 
     savedRequests.update(reqs => {
@@ -214,7 +239,6 @@
       return [newReq, ...reqs];
     });
 
-    persistRequests();
     closeModal();
 
     // If creating a new request (not editing), select it and reset form to fresh state
@@ -250,19 +274,64 @@
 
   function deleteRequest(id: string) {
     savedRequests.update(reqs => reqs.filter(r => r.id !== id));
-    persistRequests();
+    if (activeRequestId === id) {
+      activeRequestId = null;
+    }
   }
 
   function editRequestName(saved: SavedRequest) {
     editingRequest = saved;
     modalName = saved.name;
+    modalFolderId = saved.folderId || null;
     showModal = true;
   }
 
   function openSaveModal() {
     editingRequest = null;
     modalName = "";
+    modalFolderId = selectedFolderId;
     showModal = true;
+  }
+
+  function createFolder() {
+    editingFolder = null;
+    folderModalName = "";
+    showFolderModal = true;
+  }
+
+  function saveFolder() {
+    if (!folderModalName.trim()) return;
+    if (editingFolder) {
+      folders.update(f => f.map(x => x.id === editingFolder!.id ? { ...x, name: folderModalName.trim() } : x));
+    } else {
+      folders.update(f => [...f, { id: crypto.randomUUID(), name: folderModalName.trim(), createdAt: Date.now() }]);
+    }
+    closeFolderModal();
+  }
+
+  function renameFolder(folder: RequestFolder) {
+    editingFolder = folder;
+    folderModalName = folder.name;
+    showFolderModal = true;
+  }
+
+  function deleteFolder(folder: RequestFolder) {
+    if (!confirm(`Delete folder "${folder.name}"? Requests inside will become uncategorized.`)) return;
+    savedRequests.update(reqs => reqs.map(r => r.folderId === folder.id ? { ...r, folderId: null } : r));
+    folders.update(f => f.filter(x => x.id !== folder.id));
+    if (selectedFolderId === folder.id) {
+      selectedFolderId = null;
+    }
+  }
+
+  function closeFolderModal() {
+    showFolderModal = false;
+    folderModalName = "";
+    editingFolder = null;
+  }
+
+  function moveRequestToFolder(requestId: string, folderId: string | null) {
+    savedRequests.update(reqs => reqs.map(r => r.id === requestId ? { ...r, folderId } : r));
   }
 
   function closeModal() {
@@ -317,14 +386,21 @@
 <main class="app">
   <Sidebar
     savedRequests={$savedRequests}
+    folders={$folders}
     bind:searchFilter
     {activeRequestId}
+    {selectedFolderId}
     on:load={(e) => loadRequest(e.detail)}
     on:delete={(e) => deleteRequest(e.detail)}
     on:edit={(e) => editRequestName(e.detail)}
     on:saveNew={openSaveModal}
     on:search={(e) => searchFilter = e.detail}
     on:openSsl={openSslModal}
+    on:createFolder={createFolder}
+    on:renameFolder={(e) => renameFolder(e.detail)}
+    on:deleteFolder={(e) => deleteFolder(e.detail)}
+    on:selectFolder={(e) => selectedFolderId = e.detail}
+    on:moveRequest={(e) => moveRequestToFolder(e.detail.requestId, e.detail.folderId)}
   />
 
   <div class="main-content">
@@ -390,10 +466,41 @@
         class="modal-input"
         on:keydown={handleKeydown}
       />
+      <div class="modal-field">
+        <label for="folder-select">Folder</label>
+        <select id="folder-select" class="modal-select" bind:value={modalFolderId}>
+          <option value={null}>No folder</option>
+          {#each $folders as folder}
+            <option value={folder.id}>{folder.name}</option>
+          {/each}
+        </select>
+      </div>
+      
       <div class="modal-actions">
         <button class="modal-btn secondary" on:click={closeModal}>Cancel</button>
         <button class="modal-btn primary" on:click={saveRequest} disabled={!modalName.trim()}>
           {editingRequest ? 'Update' : 'Save'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showFolderModal}
+  <div class="modal-overlay" on:click={closeFolderModal}>
+    <div class="modal folder-modal" on:click|stopPropagation>
+      <h3>{editingFolder ? 'Rename Folder' : 'New Folder'}</h3>
+      <input
+        type="text"
+        bind:value={folderModalName}
+        placeholder="Folder name..."
+        class="modal-input"
+        on:keydown={(e) => { if (e.key === 'Enter') saveFolder(); if (e.key === 'Escape') closeFolderModal(); }}
+      />
+      <div class="modal-actions">
+        <button class="modal-btn secondary" on:click={closeFolderModal}>Cancel</button>
+        <button class="modal-btn primary" on:click={saveFolder} disabled={!folderModalName.trim()}>
+          {editingFolder ? 'Update' : 'Create'}
         </button>
       </div>
     </div>
@@ -646,10 +753,40 @@
     color: #e4e4e7;
     font-size: 14px;
     box-sizing: border-box;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
 
   .modal-input:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .modal-field label {
+    color: #888;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .modal-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+
+  .modal-select:focus {
     outline: none;
     border-color: #61affe;
   }

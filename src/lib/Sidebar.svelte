@@ -1,10 +1,13 @@
 <script lang="ts">
-  import type { SavedRequest, HttpMethod } from "../types";
+  import type { SavedRequest, RequestFolder } from "../types";
   import { createEventDispatcher } from "svelte";
+  import RequestItem from "./RequestItem.svelte";
 
   export let savedRequests: SavedRequest[];
+  export let folders: RequestFolder[] = [];
   export let searchFilter: string = "";
   export let activeRequestId: string | null = null;
+  export let selectedFolderId: string | null = null;
 
   const dispatch = createEventDispatcher<{
     load: SavedRequest;
@@ -13,34 +16,41 @@
     saveNew: void;
     search: string;
     openSsl: void;
+    createFolder: void;
+    renameFolder: RequestFolder;
+    deleteFolder: RequestFolder;
+    selectFolder: string | null;
+    moveRequest: { requestId: string; folderId: string | null };
   }>();
 
-  const getMethodColor = (method: HttpMethod): string => {
-    switch (method) {
-      case "GET": return "#61affe";
-      case "POST": return "#49cc90";
-      case "PUT": return "#fca130";
-      case "DELETE": return "#f93e3e";
-      case "PATCH": return "#50e3c2";
-      case "HEAD": return "#9012fe";
-      case "OPTIONS": return "#0d5aa7";
-      default: return "#999";
-    }
-  };
+  let expandedFolderIds: string[] = [];
 
-  $: filteredRequests = savedRequests.filter(r => 
+  $: filteredRequests = savedRequests.filter(r =>
     r.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
     r.url.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
-  function handleDelete(e: Event, id: string) {
-    e.stopPropagation();
-    dispatch("delete", id);
+  $: rootRequests = filteredRequests.filter(r => !r.folderId);
+  $: folderRequests = (folderId: string) => filteredRequests.filter(r => r.folderId === folderId);
+
+  function isExpanded(folderId: string): boolean {
+    return expandedFolderIds.includes(folderId);
   }
 
-  function handleEdit(e: Event, request: SavedRequest) {
+  function toggleFolder(folderId: string) {
+    expandedFolderIds = expandedFolderIds.includes(folderId)
+      ? expandedFolderIds.filter(id => id !== folderId)
+      : [...expandedFolderIds, folderId];
+  }
+
+  function handleFolderAction(e: Event, action: string, folder: RequestFolder) {
     e.stopPropagation();
-    dispatch("edit", request);
+    if (action === "rename") dispatch("renameFolder", folder);
+    if (action === "delete") dispatch("deleteFolder", folder);
+  }
+
+  function handleMoveRequest(e: CustomEvent, requestId: string) {
+    dispatch("moveRequest", { requestId, folderId: e.detail });
   }
 </script>
 
@@ -52,6 +62,13 @@
       <span class="app-name">GUI</span>
     </div>
     <div class="header-actions">
+      <button class="folder-btn" on:click={() => dispatch("createFolder")} title="New folder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          <line x1="12" y1="11" x2="12" y2="17"></line>
+          <line x1="9" y1="14" x2="15" y2="14"></line>
+        </svg>
+      </button>
       <button class="ssl-btn" on:click={() => dispatch("openSsl")} title="SSL Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -78,46 +95,122 @@
   </div>
 
   <div class="saved-requests">
-    {#if filteredRequests.length === 0}
+    {#if filteredRequests.length === 0 && folders.length === 0}
       <div class="empty-sidebar">
         {#if searchFilter}
           <p>No matches</p>
         {:else}
           <p>No saved requests</p>
-          <p class="hint">Click + to save</p>
+          <p class="hint">Click + to save, folder icon to organize</p>
         {/if}
       </div>
     {:else}
-      {#each filteredRequests as saved (saved.id)}
-        <div class="saved-request-item" class:active={saved.id === activeRequestId} on:click={() => dispatch("load", saved)}>
-          <div class="request-info">
-            <span class="method-badge" style="color: {getMethodColor(saved.method)}">{saved.method}</span>
-            <span class="request-name" title={saved.name}>{saved.name}</span>
-          </div>
-          <div class="request-actions">
-            <button class="action-btn edit" on:click={(e) => handleEdit(e, saved)} title="Rename">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      <div 
+        class="root-section"
+        class:active={selectedFolderId === null}
+        on:click={() => dispatch("selectFolder", null)}
+      >
+        <span class="section-name">All Requests</span>
+        <span class="section-count">{filteredRequests.length}</span>
+      </div>
+
+      {#each folders as folder (folder.id)}
+        <div class="folder">
+          <div class="folder-header" class:active={selectedFolderId === folder.id}>
+            <button
+              type="button"
+              class="chevron-btn"
+              class:expanded={expandedFolderIds.includes(folder.id)}
+              on:click={(e) => { e.stopPropagation(); toggleFolder(folder.id); }}
+              title={expandedFolderIds.includes(folder.id) ? "Collapse" : "Expand"}
+            >
+              <svg 
+                class="folder-chevron"
+                class:expanded={expandedFolderIds.includes(folder.id)}
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="2" 
+                stroke-linecap="round" 
+                stroke-linejoin="round"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
-            <button class="action-btn delete" on:click={(e) => handleDelete(e, saved.id)} title="Delete">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            <div class="folder-label" on:click={() => dispatch("selectFolder", folder.id)}>
+              <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
-            </button>
+              <span class="folder-name" title={folder.name}>{folder.name}</span>
+              <span class="folder-count">{folderRequests(folder.id).length}</span>
+            </div>
+            <div class="folder-actions">
+              <button 
+                type="button"
+                class="action-btn mini" 
+                on:click={(e) => handleFolderAction(e, "rename", folder)} 
+                title="Rename folder"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button 
+                type="button"
+                class="action-btn mini delete" 
+                on:click={(e) => handleFolderAction(e, "delete", folder)} 
+                title="Delete folder"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
           </div>
+          {#if expandedFolderIds.includes(folder.id)}
+            <div class="folder-children">
+              {#each folderRequests(folder.id) as saved (saved.id)}
+                <RequestItem 
+                  {saved}
+                  {activeRequestId}
+                  {folders}
+                  on:load={(e) => dispatch("load", e.detail)}
+                  on:delete={(e) => dispatch("delete", e.detail)}
+                  on:edit={(e) => dispatch("edit", e.detail)}
+                  on:move={(e) => dispatch("moveRequest", { requestId: saved.id, folderId: e.detail })}
+                />
+              {/each}
+              {#if folderRequests(folder.id).length === 0}
+                <div class="empty-folder">No requests</div>
+              {/if}
+            </div>
+          {/if}
         </div>
       {/each}
+
+      {#if selectedFolderId === null}
+        {#each rootRequests as saved (saved.id)}
+          <RequestItem 
+            {saved}
+            {activeRequestId}
+            {folders}
+            on:load={(e) => dispatch("load", e.detail)}
+            on:delete={(e) => dispatch("delete", e.detail)}
+            on:edit={(e) => dispatch("edit", e.detail)}
+            on:move={(e) => dispatch("moveRequest", { requestId: saved.id, folderId: e.detail })}
+          />
+        {/each}
+      {/if}
     {/if}
   </div>
 </aside>
 
 <style>
   .sidebar {
-    width: 280px;
-    min-width: 280px;
+    width: 300px;
+    min-width: 300px;
     background: #16162a;
     border-right: 1px solid #2a2a3e;
     display: flex;
@@ -158,7 +251,7 @@
     align-items: center;
   }
 
-  .ssl-btn, .new-request-btn {
+  .ssl-btn, .new-request-btn, .folder-btn {
     width: 28px;
     height: 28px;
     border-radius: 6px;
@@ -168,6 +261,16 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+  }
+
+  .folder-btn {
+    background: #3a3a4e;
+    color: #61affe;
+  }
+
+  .folder-btn:hover {
+    background: #4a4a5e;
+    transform: scale(1.05);
   }
 
   .ssl-btn {
@@ -190,14 +293,9 @@
     transform: scale(1.05);
   }
 
-  .ssl-btn svg, .new-request-btn svg {
+  .ssl-btn svg, .new-request-btn svg, .folder-btn svg {
     width: 16px;
     height: 16px;
-  }
-
-  .action-btn svg {
-    width: 14px;
-    height: 14px;
   }
 
   .search-box {
@@ -239,73 +337,125 @@
     color: #888;
   }
 
-  .saved-request-item {
-    padding: 12px;
-    border-radius: 8px;
-    background: #1e1e2e;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
-    position: relative;
-  }
-
-  .saved-request-item:hover {
-    background: #2a2a3e;
-    border-color: #3a3a4e;
-  }
-
-  .saved-request-item.active {
-    background: #2a2a3e;
-    border-color: #61affe;
-    box-shadow: 0 0 0 1px #61affe;
-  }
-
-  .request-info {
+  .root-section {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #888;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .root-section:hover, .root-section.active {
+    background: #2a2a3e;
+    color: #e4e4e7;
+  }
+
+  .section-count {
+    font-size: 11px;
+    background: #3a3a4e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #aaa;
+  }
+
+  .folder {
     margin-bottom: 4px;
   }
 
-  .method-badge {
-    font-size: 11px;
-    font-weight: 700;
-    min-width: 50px;
-  }
-
-  .request-name {
-    font-weight: 500;
-    font-size: 13px;
-    color: #e4e4e7;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-  }
-
-  .request-url {
-    font-size: 11px;
+  .folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
     color: #888;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .folder-header:hover, .folder-header.active {
+    background: #2a2a3e;
+    color: #e4e4e7;
+  }
+
+  .chevron-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .folder-chevron {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s;
+  }
+
+  .folder-chevron.expanded {
+    transform: rotate(90deg);
+  }
+
+  .folder-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  .folder-icon {
+    width: 16px;
+    height: 16px;
+    color: #61affe;
+    flex-shrink: 0;
+  }
+
+  .folder-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-left: 58px;
   }
 
-  .request-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
+  .folder-count {
+    font-size: 11px;
+    background: #3a3a4e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #aaa;
+    flex-shrink: 0;
+  }
+
+  .folder-actions {
     display: flex;
     gap: 4px;
-    opacity: 0.5;
-    transition: opacity 0.2s;
+    flex-shrink: 0;
   }
 
-  .saved-request-item:hover .request-actions,
-  .saved-request-item.active .request-actions {
-    opacity: 1;
+  .folder-children {
+    padding-left: 16px;
+  }
+
+  .empty-folder {
+    padding: 8px 12px;
+    color: #666;
+    font-size: 12px;
+    font-style: italic;
   }
 
   .action-btn {
@@ -327,11 +477,21 @@
     opacity: 1;
   }
 
-  .action-btn.edit:hover {
-    background: #61affe;
+  .action-btn.mini {
+    width: 20px;
+    height: 20px;
   }
 
   .action-btn.delete:hover {
     background: #f93e3e;
+  }
+
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .move-select {
+    display: none;
   }
 </style>

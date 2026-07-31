@@ -25,6 +25,20 @@ export interface AuthConfig {
   apiKeyIn: "header" | "query";
 }
 
+export interface ResponseData {
+  status_code: number;
+  status_text: string;
+  headers: Record<string, string>;
+  body: string;
+  time_ms: number;
+}
+
+export interface RequestFolder {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface SavedRequest {
   id: string;
   name: string;
@@ -37,12 +51,5 @@ export interface SavedRequest {
   response?: ResponseData;
   curlCommand?: string;
   error?: string;
-}
-
-export interface ResponseData {
-  status_code: number;
-  status_text: string;
-  headers: Record<string, string>;
-  body: string;
-  time_ms: number;
+  folderId?: string | null;
 }
