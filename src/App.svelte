@@ -458,7 +458,7 @@
 
   <div class="main-content">
     <div class="url-bar">
-      <select class="method-select" bind:value={method}>
+      <select class="method-select" bind:value={method} on:change={autoSaveRequest}>
         <option value="GET" style="color: #61affe">GET</option>
         <option value="POST" style="color: #49cc90">POST</option>
         <option value="PUT" style="color: #fca130">PUT</option>
@@ -472,9 +472,9 @@
         type="text"
         class="url-input"
         bind:value={url}
+        on:input={autoSaveRequest}
         placeholder="https://api.example.com/endpoint"
       />
-
       <button class="send-btn" on:click={sendRequest} disabled={loading}>
         {#if loading}
           <span class="spinner"></span>

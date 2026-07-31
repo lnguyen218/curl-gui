@@ -58,19 +58,38 @@
   }
 
   // Auto-save: notify parent whenever any request field changes
+  let lastHeadersJson = JSON.stringify(headers);
+  let lastBody = body;
+  let lastAuthJson = JSON.stringify(authConfig);
+
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  $: {
-    // Trigger when any bound value changes
-    headers, body, authConfig;
+
+  function maybeDispatchUpdate() {
+    const nextHeadersJson = JSON.stringify(headers);
+    const nextBody = body;
+    const nextAuthJson = JSON.stringify(authConfig);
+    if (nextHeadersJson === lastHeadersJson && nextBody === lastBody && nextAuthJson === lastAuthJson) return;
+    lastHeadersJson = nextHeadersJson;
+    lastBody = nextBody;
+    lastAuthJson = nextAuthJson;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       dispatch("update");
     }, 300);
   }
 
+  $: {
+    headers, body, authConfig;
+    maybeDispatchUpdate();
+  }
+
   onDestroy(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
   });
+
+  function handleBodyInput(e: Event) {
+    body = (e.target as HTMLTextAreaElement).value;
+  }
 </script>
 
 <div class="request-panel">
@@ -128,6 +147,7 @@
         </div>
         <textarea 
           bind:value={body}
+          on:input={handleBodyInput}
           placeholder={`{\n  "key": "value"\n}`} 
           class="body-editor"
         ></textarea>
