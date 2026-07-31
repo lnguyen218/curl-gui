@@ -137,6 +137,21 @@
       </div>
     {:else if activeTab === "body"}
       <div class="body-section">
+        <div class="body-toolbar">
+          <button
+            class="body-action-btn"
+            on:click={() => {
+              try {
+                body = JSON.stringify(JSON.parse(body), null, 2);
+              } catch (e) {
+                alert("Invalid JSON: " + (e instanceof Error ? e.message : String(e)));
+              }
+            }}
+            type="button"
+          >
+            Beautify JSON
+          </button>
+        </div>
         <textarea 
           bind:value={body}
           placeholder={`{\n  "key": "value"\n}`} 
@@ -460,13 +475,40 @@
   }
 
   .body-section {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    position: relative;
+  }
+
+  .body-toolbar {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    z-index: 1;
+  }
+
+  .body-action-btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #3a3a4e;
+    background: rgba(42, 42, 62, 0.85);
+    color: #e4e4e7;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .body-action-btn:hover {
+    border-color: #61affe;
+    color: #61affe;
+    background: rgba(42, 42, 62, 1);
   }
 
   .body-editor {
     width: 100%;
-    height: 100%;
+    flex: 1;
     padding: 15px;
+    padding-bottom: 42px;
     border-radius: 6px;
     border: 1px solid #3a3a4e;
     background: #2a2a3e;
