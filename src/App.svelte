@@ -117,13 +117,13 @@
     localStorage.setItem("curl-gui-ssl", JSON.stringify(sslConfig));
   }
 
-  // Auto-save: persist folders whenever they change
+  // Auto-save: persist folders and saved requests whenever they change
   $: {
-    localStorage.setItem("curl-gui-folders", JSON.stringify($folders));
+    persistRequests();
   }
 
-  // Auto-save: persist saved requests whenever they change
-  $: {
+  function persistRequests() {
+    localStorage.setItem("curl-gui-folders", JSON.stringify($folders));
     localStorage.setItem("curl-gui-saved-requests", JSON.stringify($savedRequests));
   }
 
