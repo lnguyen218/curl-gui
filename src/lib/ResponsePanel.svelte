@@ -60,13 +60,15 @@
     <div class="tab-content">
       {#if responseTab === "body"}
         <div class="body-wrapper">
-          <button class="copy-btn" on:click={copyBody} title="Copy to clipboard">
-            {#if copied}
-              <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="#49cc90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            {:else}
-              <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            {/if}
-          </button>
+          <div class="copy-btn-wrapper">
+            <button class="copy-btn" on:click={copyBody} title="Copy to clipboard">
+              {#if copied}
+                <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="#49cc90" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              {:else}
+                <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              {/if}
+            </button>
+          </div>
           <pre class="response-body">{formatBody(response.body)}</pre>
         </div>
       {:else}
@@ -168,10 +170,21 @@
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    position: relative;
   }
 
   .body-wrapper {
     position: relative;
+  }
+
+  .copy-btn-wrapper {
+    position: sticky;
+    float: right;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    z-index: 10;
   }
 
   .copy-btn {
@@ -185,7 +198,6 @@
     color: #888;
     cursor: pointer;
     transition: all 0.2s;
-    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
