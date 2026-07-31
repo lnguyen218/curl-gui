@@ -236,7 +236,8 @@
         const id = editingRequest.id;
         return reqs.map(r => r.id === id ? newReq : r);
       }
-      return [newReq, ...reqs];
+      const maxOrder = reqs.reduce((max, r) => Math.max(max, r.order ?? 0), 0);
+      return [{ ...newReq, order: maxOrder + 1 }, ...reqs];
     });
 
     closeModal();
@@ -304,7 +305,10 @@
     if (editingFolder) {
       folders.update(f => f.map(x => x.id === editingFolder!.id ? { ...x, name: folderModalName.trim() } : x));
     } else {
-      folders.update(f => [...f, { id: crypto.randomUUID(), name: folderModalName.trim(), createdAt: Date.now() }]);
+      folders.update(f => {
+        const maxOrder = f.reduce((max, x) => Math.max(max, x.order ?? 0), 0);
+        return [...f, { id: crypto.randomUUID(), name: folderModalName.trim(), order: maxOrder + 1, createdAt: Date.now() }];
+      });
     }
     closeFolderModal();
   }
@@ -330,8 +334,37 @@
     editingFolder = null;
   }
 
-  function moveRequestToFolder(requestId: string, folderId: string | null) {
+  function moveRequestToFolder(e: CustomEvent<{ requestId: string; folderId: string | null }>) {
+    const { requestId, folderId } = e.detail;
     savedRequests.update(reqs => reqs.map(r => r.id === requestId ? { ...r, folderId } : r));
+  }
+
+  function reorderRequest(e: CustomEvent<{ requestId: string; beforeId: string | null }>) {
+    const { requestId, beforeId } = e.detail;
+    savedRequests.update(reqs => {
+      const list = reqs.slice();
+      const idx = list.findIndex(r => r.id === requestId);
+      if (idx === -1) return list;
+      const [moved] = list.splice(idx, 1);
+      const targetIdx = beforeId ? list.findIndex(r => r.id === beforeId) : list.length;
+      const insertIdx = targetIdx === -1 ? list.length : targetIdx;
+      list.splice(insertIdx, 0, moved);
+      return list.map((r, i) => ({ ...r, order: i }));
+    });
+  }
+
+  function reorderFolder(e: CustomEvent<{ folderId: string; beforeId: string | null }>) {
+    const { folderId, beforeId } = e.detail;
+    folders.update(list => {
+      const copy = list.slice();
+      const idx = copy.findIndex(f => f.id === folderId);
+      if (idx === -1) return copy;
+      const [moved] = copy.splice(idx, 1);
+      const targetIdx = beforeId ? copy.findIndex(f => f.id === beforeId) : copy.length;
+      const insertIdx = targetIdx === -1 ? copy.length : targetIdx;
+      copy.splice(insertIdx, 0, moved);
+      return copy.map((f, i) => ({ ...f, order: i }));
+    });
   }
 
   function closeModal() {
@@ -359,6 +392,14 @@
     curlCommand = "";
     autoSaveRequest();
   }
+
+  function onSidebarLoad(e: CustomEvent<SavedRequest>) { loadRequest(e.detail); }
+  function onSidebarDelete(e: CustomEvent<string>) { deleteRequest(e.detail); }
+  function onSidebarEdit(e: CustomEvent<SavedRequest>) { editRequestName(e.detail); }
+  function onSidebarSearch(e: CustomEvent<string>) { searchFilter = e.detail; }
+  function onSidebarRenameFolder(e: CustomEvent<RequestFolder>) { renameFolder(e.detail); }
+  function onSidebarDeleteFolder(e: CustomEvent<RequestFolder>) { deleteFolder(e.detail); }
+  function onSidebarSelectFolder(e: CustomEvent<string | null>) { selectedFolderId = e.detail; }
 
   import { open } from "@tauri-apps/plugin-dialog";
 
@@ -390,17 +431,19 @@
     bind:searchFilter
     {activeRequestId}
     {selectedFolderId}
-    on:load={(e) => loadRequest(e.detail)}
-    on:delete={(e) => deleteRequest(e.detail)}
-    on:edit={(e) => editRequestName(e.detail)}
+    on:load={onSidebarLoad}
+    on:delete={onSidebarDelete}
+    on:edit={onSidebarEdit}
     on:saveNew={openSaveModal}
-    on:search={(e) => searchFilter = e.detail}
+    on:search={onSidebarSearch}
     on:openSsl={openSslModal}
     on:createFolder={createFolder}
-    on:renameFolder={(e) => renameFolder(e.detail)}
-    on:deleteFolder={(e) => deleteFolder(e.detail)}
-    on:selectFolder={(e) => selectedFolderId = e.detail}
-    on:moveRequest={(e) => moveRequestToFolder(e.detail.requestId, e.detail.folderId)}
+    on:renameFolder={onSidebarRenameFolder}
+    on:deleteFolder={onSidebarDeleteFolder}
+    on:selectFolder={onSidebarSelectFolder}
+    on:moveRequest={moveRequestToFolder}
+    on:reorderRequest={reorderRequest}
+    on:reorderFolder={reorderFolder}
   />
 
   <div class="main-content">

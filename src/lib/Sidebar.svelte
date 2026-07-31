@@ -21,6 +21,8 @@
     deleteFolder: RequestFolder;
     selectFolder: string | null;
     moveRequest: { requestId: string; folderId: string | null };
+    reorderRequest: { requestId: string; beforeId: string | null };
+    reorderFolder: { folderId: string; beforeId: string | null };
   }>();
 
   let expandedFolderIds: string[] = [];
@@ -30,8 +32,10 @@
     r.url.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
-  $: rootRequests = filteredRequests.filter(r => !r.folderId);
-  $: folderRequests = (folderId: string) => filteredRequests.filter(r => r.folderId === folderId);
+  $: rootRequests = filteredRequests.filter(r => !r.folderId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  $: folderRequests = (folderId: string) =>
+    filteredRequests.filter(r => r.folderId === folderId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  $: sortedFolders = folders.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   function isExpanded(folderId: string): boolean {
     return expandedFolderIds.includes(folderId);
@@ -49,41 +53,72 @@
     if (action === "delete") dispatch("deleteFolder", folder);
   }
 
-  // Custom drag state (HTML5 DnD doesn't work reliably in Tauri's WKWebView)
   let draggingRequestId: string | null = null;
+  let draggingFolderId: string | null = null;
   let dragOverFolderId: string | null = null;
   let dragOverRoot = false;
+  let dragOverRequestId: string | null = null;
   let dragPos = { x: 0, y: 0 };
+  let dragMode: "request" | "folder" | null = null;
 
   function onRequestDragStart(requestId: string) {
     draggingRequestId = requestId;
+    dragMode = "request";
+  }
+
+  function onFolderDragStart(folderId: string) {
+    draggingFolderId = folderId;
+    dragMode = "folder";
+  }
+
+  function onFolderPointerDown(folderId: string) {
+    return (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      const closest = target.closest(".folder-actions, .chevron-btn");
+      if (closest) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onFolderDragStart(folderId);
+    };
   }
 
   function onPointerMoveGlobal(e: PointerEvent) {
-    if (!draggingRequestId) return;
+    if (!draggingRequestId && !draggingFolderId) return;
     dragPos = { x: e.clientX, y: e.clientY };
 
-    // Find drop target under cursor
     const elements = document.elementsFromPoint(e.clientX, e.clientY);
     const folderEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropFolderId) as HTMLElement | undefined;
     const rootEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropRoot) as HTMLElement | undefined;
+    const requestEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropRequestId) as HTMLElement | undefined;
 
     dragOverFolderId = folderEl?.dataset.dropFolderId || null;
     dragOverRoot = !!rootEl;
+    dragOverRequestId = requestEl?.dataset.dropRequestId || null;
   }
 
   function onPointerUpGlobal() {
-    if (!draggingRequestId) return;
-
-    if (dragOverFolderId) {
-      dispatch("moveRequest", { requestId: draggingRequestId, folderId: dragOverFolderId });
-    } else if (dragOverRoot) {
-      dispatch("moveRequest", { requestId: draggingRequestId, folderId: null });
+    if (dragMode === "request" && draggingRequestId) {
+      if (dragOverRequestId && dragOverRequestId !== draggingRequestId) {
+        dispatch("reorderRequest", { requestId: draggingRequestId, beforeId: dragOverRequestId });
+      } else if (dragOverFolderId) {
+        dispatch("moveRequest", { requestId: draggingRequestId, folderId: dragOverFolderId });
+      } else if (dragOverRoot) {
+        dispatch("moveRequest", { requestId: draggingRequestId, folderId: null });
+      }
+    } else if (dragMode === "folder" && draggingFolderId) {
+      if (dragOverRequestId) {
+        // Ignore: can't drop folder onto request
+      } else if (dragOverFolderId && dragOverFolderId !== draggingFolderId) {
+        dispatch("reorderFolder", { folderId: draggingFolderId, beforeId: dragOverFolderId });
+      }
     }
 
     draggingRequestId = null;
+    draggingFolderId = null;
     dragOverFolderId = null;
     dragOverRoot = false;
+    dragOverRequestId = null;
+    dragMode = null;
   }
 
   function onRequestClick(saved: SavedRequest) {
@@ -160,14 +195,16 @@
         <span class="section-count">{filteredRequests.length}</span>
       </div>
 
-      {#each folders as folder (folder.id)}
+      {#each sortedFolders as folder (folder.id)}
         <div class="folder">
           <div 
             class="folder-header"
             class:active={selectedFolderId === folder.id}
             class:drop-target={dragOverFolderId === folder.id}
-            class:drag-active={!!draggingRequestId}
+            class:drag-active={!!draggingRequestId || !!draggingFolderId}
+            class:dragging={draggingFolderId === folder.id}
             data-drop-folder-id={folder.id}
+            on:pointerdown={onFolderPointerDown(folder.id)}
           >
             <button
               type="button"
@@ -189,7 +226,7 @@
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
-            <div class="folder-label" on:click={() => dispatch("selectFolder", folder.id)}>
+            <div class="folder-label" on:click={() => { if (!draggingFolderId) dispatch("selectFolder", folder.id); }}>
               <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -227,6 +264,7 @@
                 <RequestItem 
                   {saved}
                   {activeRequestId}
+                  data-drop-request-id={saved.id}
                   on:load={() => onRequestClick(saved)}
                   on:delete={(e) => dispatch("delete", e.detail)}
                   on:edit={(e) => dispatch("edit", e.detail)}
@@ -246,6 +284,7 @@
           <RequestItem 
             {saved}
             {activeRequestId}
+            data-drop-request-id={saved.id}
             on:load={() => onRequestClick(saved)}
             on:delete={(e) => dispatch("delete", e.detail)}
             on:edit={(e) => dispatch("edit", e.detail)}
@@ -459,6 +498,10 @@
     background: #2a2a3e;
     border-color: #61affe;
     color: #e4e4e7;
+  }
+
+  .folder-header.dragging {
+    opacity: 0.5;
   }
 
   .chevron-btn {

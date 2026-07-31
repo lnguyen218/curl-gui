@@ -4,6 +4,16 @@
 
   export let saved: SavedRequest;
   export let activeRequestId: string | null = null;
+  export let dropRequestId: string | undefined = undefined;
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  type $$Props = {
+    saved: SavedRequest;
+    activeRequestId?: string | null;
+    dropRequestId?: string;
+    // allow parent to set data attribute for drop detection
+    "data-drop-request-id"?: string;
+  };
 
   const dispatch = createEventDispatcher<{
     load: SavedRequest;
@@ -51,6 +61,7 @@
   class="saved-request-item" 
   class:active={saved.id === activeRequestId} 
   class:dragging
+  data-drop-request-id={dropRequestId || saved.id}
   on:pointerdown={onPointerDown}
   on:click={onClick}
 >

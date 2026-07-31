@@ -36,6 +36,7 @@ export interface ResponseData {
 export interface RequestFolder {
   id: string;
   name: string;
+  order: number;
   createdAt: number;
 }
 
@@ -52,4 +53,5 @@ export interface SavedRequest {
   curlCommand?: string;
   error?: string;
   folderId?: string | null;
+  order?: number;
 }
