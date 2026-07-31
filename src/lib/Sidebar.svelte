@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { SavedRequest, RequestFolder } from "../types";
   import { createEventDispatcher } from "svelte";
+  import type { SavedRequest, RequestFolder } from "../types";
   import RequestItem from "./RequestItem.svelte";
 
   export let savedRequests: SavedRequest[];
@@ -49,10 +49,53 @@
     if (action === "delete") dispatch("deleteFolder", folder);
   }
 
-  function handleMoveRequest(e: CustomEvent, requestId: string) {
-    dispatch("moveRequest", { requestId, folderId: e.detail });
+  // Custom drag state (HTML5 DnD doesn't work reliably in Tauri's WKWebView)
+  let draggingRequestId: string | null = null;
+  let dragOverFolderId: string | null = null;
+  let dragOverRoot = false;
+  let dragPos = { x: 0, y: 0 };
+
+  function onRequestDragStart(requestId: string) {
+    draggingRequestId = requestId;
+  }
+
+  function onPointerMoveGlobal(e: PointerEvent) {
+    if (!draggingRequestId) return;
+    dragPos = { x: e.clientX, y: e.clientY };
+
+    // Find drop target under cursor
+    const elements = document.elementsFromPoint(e.clientX, e.clientY);
+    const folderEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropFolderId) as HTMLElement | undefined;
+    const rootEl = elements.find(el => el instanceof HTMLElement && el.dataset.dropRoot) as HTMLElement | undefined;
+
+    dragOverFolderId = folderEl?.dataset.dropFolderId || null;
+    dragOverRoot = !!rootEl;
+  }
+
+  function onPointerUpGlobal() {
+    if (!draggingRequestId) return;
+
+    if (dragOverFolderId) {
+      dispatch("moveRequest", { requestId: draggingRequestId, folderId: dragOverFolderId });
+    } else if (dragOverRoot) {
+      dispatch("moveRequest", { requestId: draggingRequestId, folderId: null });
+    }
+
+    draggingRequestId = null;
+    dragOverFolderId = null;
+    dragOverRoot = false;
+  }
+
+  function onRequestClick(saved: SavedRequest) {
+    if (draggingRequestId) return;
+    dispatch("load", saved);
   }
 </script>
+
+<svelte:window 
+  on:pointermove={onPointerMoveGlobal}
+  on:pointerup={onPointerUpGlobal}
+/>
 
 <aside class="sidebar">
   <div class="sidebar-header">
@@ -108,6 +151,9 @@
       <div 
         class="root-section"
         class:active={selectedFolderId === null}
+        class:drop-target={dragOverRoot}
+        class:drag-active={!!draggingRequestId}
+        data-drop-root="true"
         on:click={() => dispatch("selectFolder", null)}
       >
         <span class="section-name">All Requests</span>
@@ -116,7 +162,13 @@
 
       {#each folders as folder (folder.id)}
         <div class="folder">
-          <div class="folder-header" class:active={selectedFolderId === folder.id}>
+          <div 
+            class="folder-header"
+            class:active={selectedFolderId === folder.id}
+            class:drop-target={dragOverFolderId === folder.id}
+            class:drag-active={!!draggingRequestId}
+            data-drop-folder-id={folder.id}
+          >
             <button
               type="button"
               class="chevron-btn"
@@ -175,11 +227,10 @@
                 <RequestItem 
                   {saved}
                   {activeRequestId}
-                  {folders}
-                  on:load={(e) => dispatch("load", e.detail)}
+                  on:load={() => onRequestClick(saved)}
                   on:delete={(e) => dispatch("delete", e.detail)}
                   on:edit={(e) => dispatch("edit", e.detail)}
-                  on:move={(e) => dispatch("moveRequest", { requestId: saved.id, folderId: e.detail })}
+                  on:dragstart={(e) => onRequestDragStart(e.detail)}
                 />
               {/each}
               {#if folderRequests(folder.id).length === 0}
@@ -195,17 +246,22 @@
           <RequestItem 
             {saved}
             {activeRequestId}
-            {folders}
-            on:load={(e) => dispatch("load", e.detail)}
+            on:load={() => onRequestClick(saved)}
             on:delete={(e) => dispatch("delete", e.detail)}
             on:edit={(e) => dispatch("edit", e.detail)}
-            on:move={(e) => dispatch("moveRequest", { requestId: saved.id, folderId: e.detail })}
+            on:dragstart={(e) => onRequestDragStart(e.detail)}
           />
         {/each}
       {/if}
     {/if}
   </div>
 </aside>
+
+{#if draggingRequestId}
+  <div class="drag-ghost" style="left: {dragPos.x}px; top: {dragPos.y}px;">
+    <span>Moving request...</span>
+  </div>
+{/if}
 
 <style>
   .sidebar {
@@ -348,10 +404,21 @@
     font-size: 13px;
     font-weight: 600;
     margin-bottom: 6px;
+    border: 2px dashed transparent;
   }
 
   .root-section:hover, .root-section.active {
     background: #2a2a3e;
+    color: #e4e4e7;
+  }
+
+  .root-section.drag-active {
+    border-color: #444;
+  }
+
+  .root-section.drop-target {
+    background: #2a2a3e;
+    border-color: #61affe;
     color: #e4e4e7;
   }
 
@@ -376,10 +443,21 @@
     color: #888;
     transition: all 0.2s;
     position: relative;
+    border: 2px dashed transparent;
   }
 
   .folder-header:hover, .folder-header.active {
     background: #2a2a3e;
+    color: #e4e4e7;
+  }
+
+  .folder-header.drag-active {
+    border-color: #444;
+  }
+
+  .folder-header.drop-target {
+    background: #2a2a3e;
+    border-color: #61affe;
     color: #e4e4e7;
   }
 
@@ -491,7 +569,24 @@
     height: 14px;
   }
 
+  .drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    background: #2a2a3e;
+    border: 1px solid #61affe;
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: #e4e4e7;
+    font-size: 12px;
+    z-index: 1000;
+    transform: translate(-50%, -50%);
+  }
+
   .move-select {
     display: none;
+  }
+
+  .saved-request-item {
+    user-select: none;
   }
 </style>

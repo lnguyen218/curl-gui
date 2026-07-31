@@ -1,16 +1,15 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import type { SavedRequest, HttpMethod, RequestFolder } from "../types";
+  import type { SavedRequest, HttpMethod } from "../types";
 
   export let saved: SavedRequest;
   export let activeRequestId: string | null = null;
-  export let folders: RequestFolder[] = [];
 
   const dispatch = createEventDispatcher<{
     load: SavedRequest;
     delete: string;
     edit: SavedRequest;
-    move: string | null;
+    dragstart: string;
   }>();
 
   const getMethodColor = (method: HttpMethod): string => {
@@ -25,29 +24,51 @@
       default: return "#999";
     }
   };
+
+  let dragging = false;
+
+  function onPointerDown(e: PointerEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest(".drag-handle")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    dispatch("dragstart", saved.id);
+  }
+
+  function onClick(e: MouseEvent) {
+    if (dragging) {
+      dragging = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    dispatch("load", saved);
+  }
 </script>
 
-<div class="saved-request-item" class:active={saved.id === activeRequestId} on:click={() => dispatch("load", saved)}>
+<div 
+  class="saved-request-item" 
+  class:active={saved.id === activeRequestId} 
+  class:dragging
+  on:pointerdown={onPointerDown}
+  on:click={onClick}
+>
   <div class="request-info">
+    <span class="drag-handle" title="Drag to folder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="12" r="1"></circle>
+        <circle cx="9" cy="5" r="1"></circle>
+        <circle cx="9" cy="19" r="1"></circle>
+        <circle cx="15" cy="12" r="1"></circle>
+        <circle cx="15" cy="5" r="1"></circle>
+        <circle cx="15" cy="19" r="1"></circle>
+      </svg>
+    </span>
     <span class="method-badge" style="color: {getMethodColor(saved.method)}">{saved.method}</span>
     <span class="request-name" title={saved.name}>{saved.name}</span>
   </div>
   <div class="request-actions">
-    {#if folders.length > 0}
-      <select
-        class="move-select"
-        value={saved.folderId || ""}
-        on:click={(e) => e.stopPropagation()}
-        on:change={(e) => dispatch("move", e.currentTarget.value || null)}
-        title="Move to folder"
-      >
-        <option value="">No folder</option>
-        {#each folders as folder}
-          <option value={folder.id}>{folder.name}</option>
-        {/each}
-      </select>
-    {/if}
-    
     <button class="action-btn edit" on:click={(e) => { e.stopPropagation(); dispatch("edit", saved); }} title="Rename">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -65,7 +86,7 @@
 
 <style>
   .saved-request-item {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-radius: 8px;
     background: #1e1e2e;
     margin-bottom: 6px;
@@ -73,6 +94,10 @@
     transition: all 0.2s;
     border: 1px solid transparent;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   .saved-request-item:hover {
@@ -86,17 +111,43 @@
     box-shadow: 0 0 0 1px #61affe;
   }
 
+  .saved-request-item.dragging {
+    opacity: 0.5;
+  }
+
   .request-info {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .drag-handle {
+    color: #666;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .drag-handle svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
   }
 
   .method-badge {
     font-size: 11px;
     font-weight: 700;
     min-width: 50px;
+    flex-shrink: 0;
   }
 
   .request-name {
@@ -106,13 +157,14 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
+    min-width: 0;
   }
 
   .request-actions {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 0;
   }
 
   .action-btn {
@@ -142,19 +194,8 @@
     background: #f93e3e;
   }
 
-  .move-select {
-    background: #2a2a3e;
-    border: 1px solid #3a3a4e;
-    color: #888;
-    border-radius: 4px;
-    font-size: 11px;
-    padding: 2px 4px;
-    cursor: pointer;
-    max-width: 80px;
-  }
-
-  .move-select:focus {
-    outline: none;
-    border-color: #61affe;
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
   }
 </style>
