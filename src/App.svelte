@@ -328,25 +328,54 @@
   />
 
   <div class="main-content">
-    <RequestPanel
-      bind:method
-      bind:url
-      bind:headers
-      bind:body
-      bind:authConfig
-      {loading}
-      on:send={sendRequest}
-      on:update={autoSaveRequest}
-    />
+    <div class="url-bar">
+      <select class="method-select" bind:value={method}>
+        <option value="GET" style="color: #61affe">GET</option>
+        <option value="POST" style="color: #49cc90">POST</option>
+        <option value="PUT" style="color: #fca130">PUT</option>
+        <option value="DELETE" style="color: #f93e3e">DELETE</option>
+        <option value="PATCH" style="color: #50e3c2">PATCH</option>
+        <option value="HEAD" style="color: #9012fe">HEAD</option>
+        <option value="OPTIONS" style="color: #0d5aa7">OPTIONS</option>
+      </select>
 
-    <div class="divider-line"></div>
+      <input
+        type="text"
+        class="url-input"
+        bind:value={url}
+        placeholder="https://api.example.com/endpoint"
+      />
 
-    <ResponsePanel
-      {response}
-      {error}
-      {curlCommand}
-      on:clear={clearResponse}
-    />
+      <button class="send-btn" on:click={sendRequest} disabled={loading}>
+        {#if loading}
+          <span class="spinner"></span>
+        {:else}
+          <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+          </svg>
+          Send
+        {/if}
+      </button>
+    </div>
+
+    <div class="panels-row">
+      <RequestPanel
+        bind:headers
+        bind:body
+        bind:authConfig
+        on:update={autoSaveRequest}
+      />
+
+      <div class="divider-line"></div>
+
+      <ResponsePanel
+        {response}
+        {error}
+        {curlCommand}
+        on:clear={clearResponse}
+      />
+    </div>
   </div>
 </main>
 
@@ -476,7 +505,97 @@
   .main-content {
     flex: 1;
     display: flex;
+    flex-direction: column;
     min-width: 0;
+    overflow: hidden;
+  }
+
+  .url-bar {
+    display: flex;
+    gap: 10px;
+    padding: 20px;
+    background: #1a1a2e;
+    border-bottom: 1px solid #3a3a4e;
+  }
+
+  .method-select {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 100px;
+    cursor: pointer;
+  }
+
+  .method-select option {
+    background: #2a2a3e;
+    color: #e4e4e7;
+  }
+
+  .url-input {
+    flex: 1;
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #3a3a4e;
+    background: #2a2a3e;
+    color: #e4e4e7;
+    font-size: 14px;
+  }
+
+  .url-input:focus {
+    outline: none;
+    border-color: #61affe;
+  }
+
+  .send-btn {
+    padding: 10px 30px;
+    border-radius: 6px;
+    border: none;
+    background: #49cc90;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .send-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .send-btn .send-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #fff;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .panels-row {
+    flex: 1;
+    display: flex;
+    min-height: 0;
     overflow: hidden;
   }
 

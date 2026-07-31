@@ -1,9 +1,7 @@
 <script lang="ts">
-  import type { Header, HttpMethod, AuthConfig } from "../types";
+  import type { Header, AuthConfig } from "../types";
   import { createEventDispatcher, onDestroy } from "svelte";
 
-  export let method: HttpMethod;
-  export let url: string;
   export let headers: Header[];
   export let body: string;
   export let authConfig: AuthConfig = {
@@ -15,10 +13,8 @@
     apiKeyValue: "",
     apiKeyIn: "header"
   };
-  export let loading: boolean = false;
 
   const dispatch = createEventDispatcher<{
-    send: void;
     update: void;
   }>();
 
@@ -34,9 +30,9 @@
     }
   }
 
-  const methods: HttpMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
+  const methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
 
-  const getMethodColor = (m: HttpMethod): string => {
+  const getMethodColor = (m: string): string => {
     switch (m) {
       case "GET": return "#61affe";
       case "POST": return "#49cc90";
@@ -65,7 +61,7 @@
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   $: {
     // Trigger when any bound value changes
-    method, url, headers, body, authConfig;
+    headers, body, authConfig;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       dispatch("update");
@@ -78,28 +74,6 @@
 </script>
 
 <div class="request-panel">
-  <div class="url-bar">
-    <select 
-      class="method-select"
-      bind:value={method}
-    >
-      {#each methods as m}
-        <option value={m} style="color: {getMethodColor(m)}">{m}</option>
-      {/each}
-    </select>
-
-    <input 
-      type="text" 
-      bind:value={url}
-      placeholder="https://api.example.com/endpoint" 
-      class="url-input" 
-    />
-
-    <button on:click={() => dispatch("send")} class="send-btn" disabled={loading}>
-      {#if loading}<span class="spinner"></span>{:else}<svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9 22,2"></polygon></svg> Send{/if}
-    </button>
-  </div>
-
   <div class="request-tabs">
     <button class="tab-btn" class:active={activeTab === "params"} on:click={() => activeTab = "params"}>Params</button>
     <button class="tab-btn auth-tab" class:active={activeTab === "auth"} on:click={() => activeTab = "auth"}>
@@ -289,78 +263,7 @@
   }
 
   .url-bar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-
-  .method-select {
-    padding: 10px 15px;
-    border-radius: 6px;
-    border: 1px solid #3a3a4e;
-    background: #2a2a3e;
-    color: #e4e4e7;
-    font-size: 14px;
-    font-weight: 600;
-    min-width: 100px;
-    cursor: pointer;
-  }
-
-  .url-input {
-    flex: 1;
-    padding: 10px 15px;
-    border-radius: 6px;
-    border: 1px solid #3a3a4e;
-    background: #2a2a3e;
-    color: #e4e4e7;
-    font-size: 14px;
-  }
-
-  .url-input:focus {
-    outline: none;
-    border-color: #61affe;
-  }
-
-  .send-btn {
-    padding: 10px 30px;
-    border-radius: 6px;
-    border: none;
-    background: #49cc90;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .send-btn:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .send-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .send-btn .send-icon {
-    width: 16px;
-    height: 16px;
-  }
-
-  .spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #fff;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+    display: none;
   }
 
   .request-tabs {
