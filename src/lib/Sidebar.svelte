@@ -37,6 +37,15 @@
     filteredRequests.filter(r => r.folderId === folderId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   $: sortedFolders = folders.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
+  import { flip } from "svelte/animate";
+  import { quintOut } from "svelte/easing";
+
+  const flipDuration = 200;
+
+  function flipProps() {
+    return { duration: flipDuration, easing: quintOut };
+  }
+
   function isExpanded(folderId: string): boolean {
     return expandedFolderIds.includes(folderId);
   }
@@ -209,7 +218,7 @@
       </div>
 
       {#each sortedFolders as folder (folder.id)}
-        <div class="folder">
+        <div class="folder" animate:flip={flipProps()}>
           <div 
             class="folder-header"
             class:active={selectedFolderId === folder.id}
@@ -274,17 +283,19 @@
           {#if expandedFolderIds.includes(folder.id)}
             <div class="folder-children">
               {#each folderRequests(folder.id) as saved (saved.id)}
-                <RequestItem 
-                  {saved}
-                  {activeRequestId}
-                  dropRequestId={saved.id}
-                  isDropBefore={dragOverRequestId === saved.id && dragOverRequestTop}
-                  isDropAfter={dragOverRequestId === saved.id && !dragOverRequestTop}
-                  on:load={() => onRequestClick(saved)}
-                  on:delete={(e) => dispatch("delete", e.detail)}
-                  on:edit={(e) => dispatch("edit", e.detail)}
-                  on:dragstart={(e) => onRequestDragStart(e.detail)}
-                />
+                <div animate:flip={flipProps()}>
+                  <RequestItem 
+                    {saved}
+                    {activeRequestId}
+                    dropRequestId={saved.id}
+                    isDropBefore={dragOverRequestId === saved.id && dragOverRequestTop}
+                    isDropAfter={dragOverRequestId === saved.id && !dragOverRequestTop}
+                    on:load={() => onRequestClick(saved)}
+                    on:delete={(e) => dispatch("delete", e.detail)}
+                    on:edit={(e) => dispatch("edit", e.detail)}
+                    on:dragstart={(e) => onRequestDragStart(e.detail)}
+                  />
+                </div>
               {/each}
               {#if folderRequests(folder.id).length === 0}
                 <div class="empty-folder">No requests</div>
@@ -296,17 +307,19 @@
 
       {#if selectedFolderId === null}
         {#each rootRequests as saved (saved.id)}
-          <RequestItem 
-            {saved}
-            {activeRequestId}
-            dropRequestId={saved.id}
-            isDropBefore={dragOverRequestId === saved.id && dragOverRequestTop}
-            isDropAfter={dragOverRequestId === saved.id && !dragOverRequestTop}
-            on:load={() => onRequestClick(saved)}
-            on:delete={(e) => dispatch("delete", e.detail)}
-            on:edit={(e) => dispatch("edit", e.detail)}
-            on:dragstart={(e) => onRequestDragStart(e.detail)}
-          />
+          <div animate:flip={flipProps()}>
+            <RequestItem 
+              {saved}
+              {activeRequestId}
+              dropRequestId={saved.id}
+              isDropBefore={dragOverRequestId === saved.id && dragOverRequestTop}
+              isDropAfter={dragOverRequestId === saved.id && !dragOverRequestTop}
+              on:load={() => onRequestClick(saved)}
+              on:delete={(e) => dispatch("delete", e.detail)}
+              on:edit={(e) => dispatch("edit", e.detail)}
+              on:dragstart={(e) => onRequestDragStart(e.detail)}
+            />
+          </div>
         {/each}
       {/if}
     {/if}
@@ -488,6 +501,7 @@
 
   .folder {
     margin-bottom: 4px;
+    user-select: none;
   }
 
   .folder-header {
@@ -587,8 +601,11 @@
 
   .folder-children {
     padding-left: 16px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
-
   .empty-folder {
     padding: 8px 12px;
     color: #666;
